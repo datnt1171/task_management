@@ -17,6 +17,9 @@ urlpatterns = [
     path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    
+    path('process/', include('process.urls')),
+    # path('user/', include('user.urls')),
+    # path('workflow_engine/', include('workflow_engine.urls')),
+    path('task/', include('task.urls')),
 
 ]

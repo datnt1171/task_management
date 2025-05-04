@@ -21,7 +21,7 @@ class TaskData(models.Model):
     value = models.TextField()
 
     def __str__(self):
-        return f"{self.task} - {self.field.label}: {self.value}"
+        return f"{self.task} - {self.field}: {self.value}"
     
 
 class TaskUser(models.Model): # stakeholder

@@ -57,6 +57,7 @@ class FieldType(models.TextChoices):
     MULTISELECT = 'multiselect', 'Multi-Select'
     CHECKBOX = 'checkbox', 'Checkbox'
     FILE = 'file', 'File'
+    JSON = 'json', 'Table'
 
 
 class ProcessField(models.Model):
