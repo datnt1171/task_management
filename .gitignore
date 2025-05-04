@@ -159,3 +159,4 @@ db/
 *.xlsx
 node_modules/
 *.http
+*.sql
