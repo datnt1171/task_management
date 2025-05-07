@@ -47,6 +47,7 @@ class TaskDetailAPIView(generics.RetrieveAPIView):
 
 #  POST /api/tasks/
 class TaskCreateAPIView(generics.CreateAPIView):
+    queryset = Task.objects.all()
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 

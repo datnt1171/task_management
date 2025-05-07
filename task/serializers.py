@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from task.models import Task, TaskData, TaskUser, TaskActionLog
 from workflow_engine.models import State
-
+from process.models import ProcessUserAction, Action
 
 class TaskDataSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,41 +17,53 @@ class TaskUserSerializer(serializers.ModelSerializer):
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     data = TaskDataSerializer(many=True, write_only=True)
-    stakeholders = TaskUserSerializer(many=True, write_only=True)
 
     class Meta:
         model = Task
-        fields = ['process', 'title', 'data', 'stakeholders']
+        fields = ['process', 'title', 'data']
 
     def create(self, validated_data):
         data = validated_data.pop('data')
-        stakeholders = validated_data.pop('stakeholders')
         user = self.context['request'].user
-
-        # Get first state of the process
         process = validated_data['process']
-        first_state = State.objects.filter(
-            transition__process=process,
-            is_first_state=True
-        ).first()
 
-        if not first_state:
-            raise serializers.ValidationError("No first state defined for this process.")
+        # Get the first state (with state_type='start')
+        start_state = State.objects.filter(state_type__name__iexact='start').first()
+        if not start_state:
+            raise serializers.ValidationError("No 'start' state defined.")
 
+        # Create the Task
         task = Task.objects.create(
             **validated_data,
             created_by=user,
-            state=first_state
+            state=start_state
         )
 
         # Save TaskData
         for item in data:
             TaskData.objects.create(task=task, **item)
 
-        # Save Stakeholders
-        for stakeholder in stakeholders:
-            TaskUser.objects.create(task=task, **stakeholder)
+        # Auto add all relevant ProcessUserAction users as TaskUser
+        process_user_actions = ProcessUserAction.objects.filter(process=process)
+        unique_users = set(pua.user for pua in process_user_actions)
+        for u in unique_users:
+            TaskUser.objects.get_or_create(task=task, user=u)
 
+        # Include the creator as a stakeholder
+        TaskUser.objects.get_or_create(task=task, user=user)
+
+        create_action = Action.objects.filter(
+            action_type__name__iexact='initial',
+            process=process
+        ).first()
+
+        # Create TaskActionLog
+        TaskActionLog.objects.create(
+            task=task,
+            user=user,
+            action=create_action
+        )
+        
         return task
 
 
