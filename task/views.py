@@ -62,9 +62,5 @@ class TaskStatusUpdateAPIView(generics.UpdateAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'status': 'updated'})
+    def get_serializer_context(self):
+        return {'request': self.request}

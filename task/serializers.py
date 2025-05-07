@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from task.models import Task, TaskData, TaskUser, TaskActionLog
-from workflow_engine.models import State
+from workflow_engine.models import State, Transition, ActionTransition
 from process.models import ProcessUserAction, Action
 
 class TaskDataSerializer(serializers.ModelSerializer):
@@ -92,3 +92,35 @@ class TaskStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['state']
+
+    def update(self, instance, validated_data):
+        new_state = validated_data.get('state')
+        user = self.context['request'].user
+
+        # Validate transition
+        transition = Transition.objects.filter(
+            current_state=instance.state,
+            next_state=new_state,
+            process=instance.process
+        ).first()
+
+        if not transition:
+            raise serializers.ValidationError("Invalid state transition.")
+
+        # Find the action associated with this transition
+        action_transition = ActionTransition.objects.filter(transition=transition).first()
+        if not action_transition:
+            raise serializers.ValidationError("No action defined for this transition.")
+
+        # Update the task's state
+        instance.state = new_state
+        instance.save()
+
+        # Log the action without the transition reference
+        TaskActionLog.objects.create(
+            task=instance,
+            user=user,
+            action=action_transition.action
+        )
+
+        return instance
