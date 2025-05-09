@@ -1,0 +1,102 @@
+✅ Backend (Django) Setup
+Authentication
+Using username (not email) for login.
+
+JWT authentication with rest_framework_simplejwt.
+
+Session authentication is also enabled for django admin.
+API:
+api/token/
+api/token/refresh/
+process/processes/ # List all processes (template of task) # GET 
+task/sent/ # List all sent tasks (GET)
+task/received/ # List all received tasks (GET)
+task/<int:pk>/ # Show detail of a task (GET)
+task/create/ # Create a new task (POST)
+task/<int:pk>/status/ (PUT)
+Apps & Models
+You have 4 main Django apps:
+
+user — custom User model with department and role.
+
+process — defines workflows, actions, allowed users, and form fields.
+
+workflow_engine — manages states and transitions.
+
+task — creates tasks, task data, stakeholders, and action logs.
+
+✅ Frontend (Next.js + Tailwind + TypeScript)
+
+/frontend
+│	
+├── /app     # App Router (newer approach)
+│   ├── layout.tsx             # Root layout (applies to all routes)
+│   ├── page.tsx               # Home page (/)
+│   ├── favicon.ico            # Site favicon
+│   │
+│   ├── /login                 # Login route
+│   │   └── page.tsx
+│   │
+│   ├── /reset-password
+│   │   └── page.tsx
+│   │
+│   ├── /dashboard
+│   │   ├── layout.tsx         # Dashboard layout with sidebar
+│   │   ├── page.tsx           # Dashboard index
+│   │   │
+│   │   ├── /tasks
+│   │   │   ├── /create
+│   │   │   │   └── page.tsx   # Create task page
+│   │   │   │
+│   │   │   ├── /sent
+│   │   │   │   └── page.tsx   # Sent tasks page
+│   │   │   │
+│   │   │   └── /received
+│   │   │       └── page.tsx   # Received tasks page
+│   │
+│   └── /api                   # API routes (if needed)
+│       └── /auth
+│           └── route.ts       # Auth API handlers
+│
+├── /components
+│   ├── /ui                    # Reusable UI components
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── Input.tsx
+│   │   └── Modal.tsx
+│   │   └── dropdown-menu.tsx
+│   ├── /layout
+│   │   ├── Navbar.tsx
+│   │   └── Sidebar.tsx
+│   │
+│   ├── /dashboard
+│   │   ├── OngoingRequests.tsx
+│   │   └── ActivityFeed.tsx
+│   │
+│   └── /auth
+│       └── ResetPasswordForm.tsx
+│
+├── /lib                       # Utility functions & shared logic
+│   ├── axios.ts               # API client with interceptors
+│   ├── utils.ts               # General utility functions
+│   └── types.ts               # TypeScript types/interfaces
+│
+├── /hooks                     # Custom React hooks
+│   ├── useAuth.ts             # Authentication hook
+│   └── useTasks.ts            # Task management hook
+│
+├── /providers                 # Context providers
+│   └── AuthProvider.tsx       # Auth state management
+│
+├── /public                    # Static assets
+│   └── /images
+│       └── logo.svg
+│
+├── /styles                    # Global styles
+│   └── globals.css            # Tailwind directives
+│
+├── tailwind.config.ts
+├── postcss.config.js
+├── tsconfig.json
+├── next.config.js
+└── package.json
