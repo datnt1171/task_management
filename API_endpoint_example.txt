@@ -1,0 +1,294 @@
+### Backend API Endpoints for Task Management Application
+
+Here's a comprehensive list of all the API endpoints needed for the task management application, along with examples for each endpoint.
+- **URL**: `/api/token/` POST
+- **URL**: `/api/token/refresh/` POST
+
+- **URL**: `/api/processes/processes/` GET
+- **URL**: `/api/processes/processes/{id}/` GET
+
+- **URL**: `/api/tasks/sent/ GET
+- **URL**: `/api/tasks/received/ GET
+- **URL**: `/api/tasks/ POST
+- **URL**: `/api/tasks/{id}/` GET
+- **URL**: `/api/tasks/{id}/status/` PATCH
+
+## 1. Authentication Endpoints
+
+### 1.1. Token Obtain (Login)
+
+- **URL**: `/api/token/`
+- **Method**: `POST`
+- **Description**: Authenticates a user and returns access and refresh tokens
+
+
+**Request:**
+
+```json
+{
+  "username": "john.doe",
+  "password": "securepassword123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### 1.2. Token Refresh
+
+- **URL**: `/api/token/refresh/`
+- **Method**: `POST`
+- **Description**: Refreshes an expired access token using a valid refresh token
+
+
+**Request:**
+
+```json
+{
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response:**
+
+```json
+{
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+## 2. Process/Form Template Endpoints
+
+### 2.1. List All Processes
+
+- **URL**: `/api/processes/processes/`
+- **Method**: `GET`
+- **Description**: Returns a list of all available process templates
+
+
+**Response:**
+
+```json
+{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "name": "maintenance request",
+      "description": "Request for maintenance services",
+    },
+    {
+      "id": 2,
+      "name": "common task",
+      "description": "General task assignment",
+    }
+  ]
+}
+```
+
+### 2.2. Get Process Detail
+
+- **URL**: `/api/processes/processes/{id}/`
+- **Method**: `GET`
+- **Description**: Returns details of a specific process template
+
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "name": "maintenance request",
+  "description": "Request for maintenance services",
+  "fields": [
+    {
+      "id": 2,
+      "name": "Task detail",
+      "field_type": "text",
+      "required": true,
+      "options": null
+    },
+    {
+      "id": 1,
+      "name": "property id",
+      "field_type": "text",
+      "required": true,
+      "options": null
+    },
+    {
+      "id": 3,
+      "name": "required completion time",
+      "field_type": "date",
+      "required": true,
+      "options": null
+    }
+  ]
+}
+```
+
+## 3. Task Endpoints
+
+### 3.1. List Sent Tasks
+
+- **URL**: `/api/tasks/sent/
+- **Method**: `GET`
+- **Description**: Returns a list of tasks that created by current user
+- **Query Parameters**: task__created_by  = current_user.id
+
+**Response:**
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+       "title": "BT001",
+      "process": {
+        "name": "maintenance request"
+      },
+      "state": "pending",
+      "created_at": "2023-05-08T10:30:00Z",
+      "recipient": "user5", #User that can perform action so this task will move to the next state
+
+
+
+    },
+    {
+      "id": 2,
+       "title": "BT002",
+      "process": {
+        "name": "maintenance request"
+      },
+      "status": "working-on",
+      "created_at": "2023-05-08T10:30:00Z",
+      "recipient": "user2", #User that can perform action so this task will move to the next state
+    }
+  ]
+}
+```
+### 3.2. List Received Tasks
+
+- **URL**: `/api/tasks/received/
+- **Method**: `GET`
+- **Description**: Returns a list of tasks that need an action by current user
+- **Query Parameters**: state__transitions_from__actiontransition__action__in = ProcessUserAction.action
+
+**Response:**
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+       "title": "BT001",
+      "process": {
+        "name": "maintenance request"
+      },
+      "status": "pending",
+      "created_by": "user1",
+      "action": "approve", #action that can perform by current user
+    },
+    {
+      "id": 1,
+       "title": "BT002",
+      "process": {
+        "name": "maintenance request"
+      },
+      "status": "pending",
+      "created_by": "user1",
+      "action": "approve", #action that can perform by current user
+    }
+  ]
+}
+```
+
+### 3.3. Create Task
+
+- **URL**: `/api/tasks/`
+- **Method**: `POST`
+- **Description**: Creates a new task
+
+
+**Request:**
+
+```json
+{
+  "process": 1,
+  "title": "BT123",
+  "fields": [
+    {
+      "field_id": 2,
+      "value": "Bathroom faucet is leaking and needs repair"
+    },
+    {
+      "field_id": 1,
+      "value": "Property-123"
+    },
+    {
+      "field_id": 3,
+      "value": "2023-05-20"
+    }
+  ]
+}
+
+
+### 3.4. Get Task Detail
+
+- **URL**: `/api/tasks/{id}/`
+- **Method**: `GET`
+- **Description**: Returns details of a specific task
+
+
+**Response:**
+```json
+{
+       "id": 1,
+       "title": "BT002",
+      "process": {
+        "name": "maintenance request"
+      },
+      "status": "pending",
+      "created_by": "user1",
+      "action": "approve", #action that can perform by current user
+}
+```
+
+
+### 3.5. Update Task Status
+
+- **URL**: `/api/tasks/{id}/status/`
+- **Method**: `PATCH`
+- **Description**: Updates the status of a task
+
+
+**Request:**
+
+```json
+{
+  "status": "in_progress"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "status": "in_progress",
+  "updated_at": "2023-05-09T08:30:00Z"
+}
+```

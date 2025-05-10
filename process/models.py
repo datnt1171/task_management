@@ -3,6 +3,7 @@ from user.models import User
 
 class Process(models.Model):
     name = models.TextField()
+    description = models.TextField(blank=True, null=True)
 
 
     def __str__(self):
@@ -54,7 +55,6 @@ class FieldType(models.TextChoices):
     NUMBER = 'number', 'Number'
     DATE = 'date', 'Date'
     SELECT = 'select', 'Select'
-    MULTISELECT = 'multiselect', 'Multi-Select'
     CHECKBOX = 'checkbox', 'Checkbox'
     FILE = 'file', 'File'
     JSON = 'json', 'Table'
@@ -65,7 +65,7 @@ class ProcessField(models.Model):
     name = models.CharField(max_length=255)
     field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)
     required = models.BooleanField(default=False)
-
+    options = models.JSONField(blank=True, null=True)
 
     class Meta:
         unique_together = ('process', 'name')

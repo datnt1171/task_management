@@ -1,11 +1,11 @@
-from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets
 
 from process.models import Process
 from .serializers import ProcessSerializer
 
 
-class ProcessListAPIView(generics.ListAPIView):
+class ProcessViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProcessSerializer
     permission_classes = [IsAuthenticated]
 
