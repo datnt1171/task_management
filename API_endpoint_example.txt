@@ -1,3 +1,537 @@
+### API Documentation for TaskFlow Application
+
+Below is a comprehensive documentation of all API endpoints required by the frontend implementation. This can serve as a reference for backend developers to ensure all necessary endpoints are implemented correctly.
+
+## Base URL
+
+All API endpoints are relative to: `/api`
+
+---
+
+## 1. Authentication
+
+### Login
+
+- **URL**: `/token/`
+- **Method**: `POST`
+- **Description**: Authenticates a user and returns access and refresh tokens
+- **Request Body**:
+
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+
+- **Response**:
+
+```json
+{
+  "access": "string",
+  "refresh": "string"
+}
+```
+
+
+
+
+### Refresh Token
+
+- **URL**: `/token/refresh/`
+- **Method**: `POST`
+- **Description**: Refreshes an expired access token using a valid refresh token
+- **Request Body**:
+
+```json
+{
+  "refresh": "string"
+}
+```
+
+
+- **Response**:
+
+```json
+{
+  "access": "string"
+}
+```
+
+
+
+
+---
+
+## 2. User Management
+
+### Get Current User
+
+- **URL**: `/users/me/`
+- **Method**: `GET`
+- **Description**: Returns the currently authenticated user's details
+- **Authentication**: Required
+- **Response**:
+
+```json
+{
+  "id": "integer",
+  "username": "string",
+  "first_name": "string",
+  "last_name": "string",
+  "department": {
+    "id": "integer",
+    "name": "string"
+  },
+  "role": {
+    "id": "integer",
+    "name": "string"
+  }
+}
+```
+
+
+
+
+### List Users
+
+- **URL**: `/users/`
+- **Method**: `GET`
+- **Description**: Returns a list of users for task assignment
+- **Authentication**: Required
+- **Response**:
+
+```json
+{
+  "count": "integer",
+  "next": "string|null",
+  "previous": "string|null",
+  "results": [
+    {
+      "id": "integer",
+      "username": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "department": {
+        "id": "integer",
+        "name": "string"
+      },
+      "role": {
+        "id": "integer",
+        "name": "string"
+      }
+    }
+  ]
+}
+```
+
+
+
+
+---
+
+## 3. Process/Form Templates
+
+### List Processes
+
+- **URL**: `/processes/processes/`
+- **Method**: `GET`
+- **Description**: Returns a list of available process templates
+- **Authentication**: Required
+- **Response**:
+
+```json
+{
+  "count": "integer",
+  "next": "string|null",
+  "previous": "string|null",
+  "results": [
+    {
+      "id": "integer",
+      "name": "string",
+      "description": "string",
+      "fields": [
+        {
+          "id": "integer",
+          "name": "string",
+          "field_type": "string",
+          "required": "boolean",
+          "options": ["string"]|null
+        }
+      ],
+      "actions": [
+        {
+          "id": "integer",
+          "name": "string",
+          "description": "string",
+          "action_type": {
+            "id": "integer",
+            "name": "string"
+          }
+        }
+      ],
+      "allowed_users": [
+        {
+          "id": "integer",
+          "user": {
+            "id": "integer",
+            "username": "string"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+
+
+
+### Get Process Details
+
+- **URL**: `/processes/processes/{id}/`
+- **Method**: `GET`
+- **Description**: Returns details of a specific process template
+- **Authentication**: Required
+- **Parameters**:
+
+- `id`: Process ID (in path)
+
+
+
+- **Response**: Same as a single process object from the list endpoint
+
+
+---
+
+## 4. Tasks
+
+### List Sent Tasks
+
+- **URL**: `/tasks/sent/`
+- **Method**: `GET`
+- **Description**: Returns tasks created by the current user
+- **Authentication**: Required
+- **Response**:
+
+```json
+{
+  "count": "integer",
+  "next": "string|null",
+  "previous": "string|null",
+  "results": [
+    {
+      "id": "integer",
+      "title": "string",
+      "process": {
+        "id": "integer",
+        "name": "string"
+      },
+      "state": {
+        "id": "integer",
+        "name": "string"
+      },
+      "created_at": "datetime",
+      "created_by": {
+        "id": "integer",
+        "username": "string"
+      },
+      "stakeholders": [
+        {
+          "id": "integer",
+          "user": {
+            "id": "integer",
+            "username": "string"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+
+
+
+### List Received Tasks
+
+- **URL**: `/tasks/received/`
+- **Method**: `GET`
+- **Description**: Returns tasks assigned to the current user
+- **Authentication**: Required
+- **Response**: Same format as sent tasks, with the addition of `available_actions`
+
+```json
+{
+  "results": [
+    {
+      "id": "integer",
+      "title": "string",
+      "process": {
+        "id": "integer",
+        "name": "string"
+      },
+      "state": {
+        "id": "integer",
+        "name": "string"
+      },
+      "created_at": "datetime",
+      "created_by": {
+        "id": "integer",
+        "username": "string"
+      },
+      "stakeholders": [...],
+      "available_actions": [
+        {
+          "id": "integer",
+          "name": "string",
+          "description": "string"
+        }
+      ]
+    }
+  ]
+}
+```
+
+
+
+
+### Get Task Details
+
+- **URL**: `/tasks/{id}/`
+- **Method**: `GET`
+- **Description**: Returns details of a specific task
+- **Authentication**: Required
+- **Parameters**:
+
+- `id`: Task ID (in path)
+
+
+
+- **Response**:
+
+```json
+{
+  "id": "integer",
+  "title": "string",
+  "process": {
+    "id": "integer",
+    "name": "string"
+  },
+  "state": {
+    "id": "integer",
+    "name": "string"
+  },
+  "created_at": "datetime",
+  "created_by": {
+    "id": "integer",
+    "username": "string"
+  },
+  "stakeholders": [...],
+  "task_data": [
+    {
+      "field": {
+        "id": "integer",
+        "name": "string"
+      },
+      "value": "string"
+    }
+  ],
+  "action_logs": [
+    {
+      "id": "integer",
+      "user": {
+        "id": "integer",
+        "username": "string"
+      },
+      "action": {
+        "id": "integer",
+        "name": "string",
+        "description": "string"
+      },
+      "comment": "string",
+      "timestamp": "datetime"
+    }
+  ],
+  "available_actions": [
+    {
+      "id": "integer",
+      "name": "string",
+      "description": "string"
+    }
+  ]
+}
+```
+
+
+
+
+### Create Task
+
+- **URL**: `/tasks/`
+- **Method**: `POST`
+- **Description**: Creates a new task
+- **Authentication**: Required
+- **Request Body**:
+
+```json
+{
+  "title": "string",
+  "process": "integer",
+  "assignee": "integer",
+  "fields": [
+    {
+      "field_id": "integer",
+      "value": "string"
+    }
+  ]
+}
+```
+
+
+- **Response**: Returns the created task object
+
+
+---
+
+## 5. Task Actions
+
+### Perform Task Action
+
+- **URL**: `/tasks/{id}/actions/`
+- **Method**: `POST`
+- **Description**: Performs an action on a task (approve, reject, complete, etc.)
+- **Authentication**: Required
+- **Parameters**:
+
+- `id`: Task ID (in path)
+
+
+
+- **Request Body**:
+
+```json
+{
+  "action": "string",
+  "comment": "string",
+  "metadata": {
+    "key": "value"
+  }
+}
+```
+
+
+- **Response**:
+
+```json
+{
+  "success": "boolean",
+  "task": {
+    // Updated task object
+  }
+}
+```
+
+
+
+
+---
+
+## 6. Task History
+
+### Get Task History
+
+- **URL**: `/tasks/{id}/history/`
+- **Method**: `GET`
+- **Description**: Returns the detailed history of a task
+- **Authentication**: Required
+- **Parameters**:
+
+- `id`: Task ID (in path)
+
+
+
+- **Response**:
+
+```json
+{
+  "task_id": "integer",
+  "history": [
+    {
+      "id": "integer",
+      "user": {
+        "id": "integer",
+        "username": "string"
+      },
+      "action": {
+        "id": "integer",
+        "name": "string",
+        "description": "string"
+      },
+      "from_state": {
+        "id": "integer",
+        "name": "string"
+      },
+      "to_state": {
+        "id": "integer",
+        "name": "string"
+      },
+      "comment": "string",
+      "metadata": {
+        "key": "value"
+      },
+      "timestamp": "datetime"
+    }
+  ]
+}
+```
+
+
+
+
+---
+
+## Authentication and Headers
+
+All authenticated requests should include:
+
+```plaintext
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+## Pagination
+
+List endpoints support pagination with the following query parameters:
+
+- `page`: Page number
+- `page_size`: Number of items per page
+
+
+## Error Responses
+
+All endpoints should return appropriate HTTP status codes and error messages:
+
+```json
+{
+  "error": "string",
+  "detail": "string"
+}
+```
+
+## Notes for Implementation
+
+1. **State Transitions**: The backend should handle state transitions based on actions, not direct state updates.
+2. **Validation**: Ensure proper validation for task creation and actions based on process rules.
+3. **Permissions**: Implement proper permission checks for all endpoints.
+4. **Audit Trail**: Maintain a complete audit trail of all actions performed on tasks.
+
+
+This API documentation covers all the endpoints required by the frontend implementation and provides a solid foundation for building a robust task management system.
+
+
+
 ### Backend API Endpoints for Task Management Application
 
 Here's a comprehensive list of all the API endpoints needed for the task management application, along with examples for each endpoint.

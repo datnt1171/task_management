@@ -1,126 +1,153 @@
 from rest_framework import serializers
-from task.models import Task, TaskData, TaskUser, TaskActionLog
-from workflow_engine.models import State, Transition, ActionTransition
-from process.models import ProcessUserAction, Action
+from .models import Task, TaskData, TaskActionLog
+from process.models import Process, ProcessField, Action
+from workflow_engine.models import State, Transition
 
-class TaskDataSerializer(serializers.ModelSerializer):
+class TaskProcessSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TaskData
-        fields = ['field', 'value']
+        model = Process
+        fields = ['name']
 
 
-class TaskUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TaskUser
-        fields = ['user']
-
-
-class TaskCreateSerializer(serializers.ModelSerializer):
-    data = TaskDataSerializer(many=True, write_only=True)
+class SentTaskSerializer(serializers.ModelSerializer):
+    process = TaskProcessSerializer(read_only=True)
+    recipient = serializers.SerializerMethodField()
+    state = serializers.CharField(source='state.name')
 
     class Meta:
         model = Task
-        fields = ['process', 'title', 'data']
+        fields = ['id', 'title', 'process', 'state', 'created_at', 'recipient']
 
+    def get_recipient(self, obj):
+        # Get user who can act on this task
+        request = self.context['request']
+        action = (
+            obj.state
+              .transitions_from
+              .first()
+              .actiontransition_set
+              .filter(action__process=obj.process)
+              .first()
+        )
+        if action:
+            user_action = action.action.processuseraction_set.first()
+            return user_action.user.username if user_action else None
+        return None
+
+
+class ReceivedTaskSerializer(serializers.ModelSerializer):
+    process = TaskProcessSerializer(read_only=True)
+    created_by = serializers.SerializerMethodField()
+    action = serializers.SerializerMethodField()
+    state = serializers.CharField(source='state.name')
+
+    class Meta:
+        model = Task
+        fields = ['id', 'title', 'process', 'state', 'created_by', 'action']
+
+    def get_created_by(self, obj):
+        return obj.created_by.username
+
+    def get_action(self, obj):
+        user = self.context['request'].user
+        return (
+            obj.state
+              .transitions_from
+              .filter(
+                  actiontransition__action__processuseraction__user=user
+              )
+              .values_list('actiontransition__action__name', flat=True)
+              .first()
+        )
+     
+        
+class TaskDataInputSerializer(serializers.Serializer):
+    field_id = serializers.IntegerField()
+    value = serializers.CharField()
+
+
+class TaskCreateSerializer(serializers.ModelSerializer):
+    fields = TaskDataInputSerializer(many=True)
+    
+    class Meta:
+        model = Task
+        fields = ['process', 'title', 'fields']
+    
     def create(self, validated_data):
-        data = validated_data.pop('data')
         user = self.context['request'].user
         process = validated_data['process']
+        title = validated_data['title']
+        field_data = validated_data.pop('fields')
 
-        # Get the first state (with state_type='start')
-        start_state = State.objects.filter(state_type__name__iexact='start').first()
+        # Get the start state for this process
+        start_state = State.objects.filter(
+            state_type__name__iexact='start',
+            transition__process=process
+        ).distinct().first()
+
         if not start_state:
-            raise serializers.ValidationError("No 'start' state defined.")
+            raise serializers.ValidationError("Start state not defined for this process.")
 
-        # Create the Task
         task = Task.objects.create(
-            **validated_data,
+            process=process,
+            title=title,
             created_by=user,
             state=start_state
         )
 
-        # Save TaskData
-        for item in data:
-            TaskData.objects.create(task=task, **item)
+        for field in field_data:
+            field_obj = ProcessField.objects.get(id=field['field_id'], process=process)
+            TaskData.objects.create(
+                task=task,
+                field=field_obj,
+                value=field['value']
+            )
 
-        # Auto add all relevant ProcessUserAction users as TaskUser
-        process_user_actions = ProcessUserAction.objects.filter(process=process)
-        unique_users = set(pua.user for pua in process_user_actions)
-        for u in unique_users:
-            TaskUser.objects.get_or_create(task=task, user=u)
-
-        # Include the creator as a stakeholder
-        TaskUser.objects.get_or_create(task=task, user=user)
-
-        create_action = Action.objects.filter(
-            action_type__name__iexact='initial',
-            process=process
-        ).first()
-
-        # Create TaskActionLog
-        TaskActionLog.objects.create(
-            task=task,
-            user=user,
-            action=create_action
-        )
-        
         return task
+    
 
+class TaskActionSerializer(serializers.Serializer):
+    action_id = serializers.IntegerField()
 
-class TaskSimpleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Task
-        fields = ['id', 'title', 'process', 'state', 'created_at']
-
-
-class TaskDetailSerializer(serializers.ModelSerializer):
-    data = serializers.SerializerMethodField()
-    stakeholders = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Task
-        fields = ['id', 'title', 'process', 'state', 'created_at', 'data', 'stakeholders']
-
-    def get_data(self, obj):
-        return TaskDataSerializer(obj.taskdata_set.all(), many=True).data
-
-    def get_stakeholders(self, obj):
-        return TaskUserSerializer(obj.stakeholder.all(), many=True).data
-
-
-class TaskStatusUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Task
-        fields = ['state']
-
-    def update(self, instance, validated_data):
-        new_state = validated_data.get('state')
+    def validate(self, attrs):
         user = self.context['request'].user
+        task = self.context['task']
+        action_id = attrs['action_id']
 
-        # Validate transition
-        transition = Transition.objects.filter(
-            current_state=instance.state,
-            next_state=new_state,
-            process=instance.process
-        ).first()
+        # Check if action exists
+        try:
+            action = Action.objects.get(id=action_id, process=task.process)
+        except Action.DoesNotExist:
+            raise serializers.ValidationError("Invalid action for this process.")
 
-        if not transition:
-            raise serializers.ValidationError("Invalid state transition.")
+        # Check user permission
+        if not task.process.processuseraction_set.filter(user=user, action=action).exists():
+            raise serializers.ValidationError("User not permitted to perform this action.")
 
-        # Find the action associated with this transition
-        action_transition = ActionTransition.objects.filter(transition=transition).first()
-        if not action_transition:
-            raise serializers.ValidationError("No action defined for this transition.")
+        # Validate that the action is allowed from the current state
+        try:
+            transition = Transition.objects.get(
+                process=task.process,
+                current_state=task.state,
+                actiontransition__action=action
+            )
+        except Transition.DoesNotExist:
+            raise serializers.ValidationError("Invalid transition for this action from current state.")
 
-        # Update the task's state
-        instance.state = new_state
-        instance.save()
+        attrs['action'] = action
+        attrs['transition'] = transition
+        return attrs
 
-        # Log the action without the transition reference
-        TaskActionLog.objects.create(
-            task=instance,
-            user=user,
-            action=action_transition.action
-        )
+    def save(self, **kwargs):
+        task = self.context['task']
+        user = self.context['request'].user
+        action = self.validated_data['action']
+        transition = self.validated_data['transition']
 
-        return instance
+        # Update task state
+        task.state = transition.next_state
+        task.save()
+
+        # Log the action
+        TaskActionLog.objects.create(task=task, user=user, action=action)
+        return task

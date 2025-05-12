@@ -1,66 +1,52 @@
-from rest_framework import generics
+# task/views.py
+
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
-from .serializers import (
-    TaskSimpleSerializer,
-    TaskDetailSerializer,
-    TaskCreateSerializer,
-    TaskStatusUpdateSerializer,
-)
+from task.serializers import TaskCreateSerializer
 
-from task.models import Task
-from process.models import ProcessUserAction
-# GET /api/tasks/sent/
-class SentTaskListAPIView(generics.ListAPIView):
-    serializer_class = TaskSimpleSerializer
-    permission_classes = [IsAuthenticated]
+from .models import Task
+from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
+                          TaskActionSerializer)
+
+
+class SentTasksAPIView(generics.ListAPIView):
+    serializer_class = SentTaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Task.objects.filter(created_by=self.request.user)
 
 
 class ReceivedTasksAPIView(generics.ListAPIView):
-    serializer_class = TaskSimpleSerializer  # or TaskDetailSerializer
-    permission_classes = [IsAuthenticated]
+    serializer_class = ReceivedTaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-
         return Task.objects.filter(
-            state__transitions_from__actiontransition__action__in=(
-                ProcessUserAction.objects.filter(user=user).values('action')
-            ),
-            process__in=(
-                ProcessUserAction.objects.filter(user=user).values('process')
-            )
-        ).distinct().select_related('process', 'state', 'created_by')
+            state__transitions_from__actiontransition__action__processuseraction__user=user
+        ).distinct()
 
 
-#  GET /api/tasks/{id}/
-class TaskDetailAPIView(generics.RetrieveAPIView):
-    queryset = Task.objects.all()
-    serializer_class = TaskDetailSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_field = 'pk'
-
-
-#  POST /api/tasks/
-class TaskCreateAPIView(generics.CreateAPIView):
+class TaskCreateView(generics.CreateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskCreateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    
+class TaskActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_serializer_context(self):
-        return {'request': self.request}
+    def post(self, request, pk):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response({"detail": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
 
-
-#  PUT /api/tasks/{id}/status/
-class TaskStatusUpdateAPIView(generics.UpdateAPIView):
-    queryset = Task.objects.all()
-    serializer_class = TaskStatusUpdateSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_field = 'pk'
-
-    def get_serializer_context(self):
-        return {'request': self.request}
+        serializer = TaskActionSerializer(data=request.data, context={'request': request, 'task': task})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"detail": "Action performed successfully."})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
