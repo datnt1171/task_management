@@ -67,7 +67,7 @@ class TaskDataInputSerializer(serializers.Serializer):
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
-    fields = TaskDataInputSerializer(many=True)
+    fields = TaskDataInputSerializer(many=True, write_only=True)
     
     class Meta:
         model = Task
@@ -81,8 +81,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         # Get the start state for this process
         start_state = State.objects.filter(
-            state_type__name__iexact='start',
-            transition__process=process
+            state_type__name__exact='start',
+            transitions_from__process=process
         ).distinct().first()
 
         if not start_state:

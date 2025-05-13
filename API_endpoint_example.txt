@@ -379,7 +379,6 @@ All API endpoints are relative to: `/api`
 {
   "title": "string",
   "process": "integer",
-  "assignee": "integer",
   "fields": [
     {
       "field_id": "integer",
