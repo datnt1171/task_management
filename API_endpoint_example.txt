@@ -532,20 +532,7 @@ This API documentation covers all the endpoints required by the frontend impleme
 
 
 
-### Backend API Endpoints for Task Management Application
-
-Here's a comprehensive list of all the API endpoints needed for the task management application, along with examples for each endpoint.
-- **URL**: `/api/token/` POST
-- **URL**: `/api/token/refresh/` POST
-
-- **URL**: `/api/processes/processes/` GET
-- **URL**: `/api/processes/processes/{id}/` GET
-
-- **URL**: `/api/tasks/sent/ GET
-- **URL**: `/api/tasks/received/ GET
-- **URL**: `/api/tasks/ POST
-- **URL**: `/api/tasks/{id}/` GET
-- **URL**: `/api/tasks/{id}/status/` PATCH
+### Backend API Endpoints Example
 
 ## 1. Authentication Endpoints
 
