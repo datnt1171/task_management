@@ -155,3 +155,86 @@ class TaskActionSerializer(serializers.Serializer):
         return task
     
     
+class TaskDataSerializer(serializers.ModelSerializer):
+    field = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskData
+        fields = ['field', 'value']
+
+    def get_field(self, obj):
+        return {
+            'id': obj.field.id,
+            'name': obj.field.name
+        }
+
+
+class TaskActionLogSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    action = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskActionLog
+        fields = ['id', 'user', 'action', 'timestamp']
+
+    def get_user(self, obj):
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username
+        }
+
+    def get_action(self, obj):
+        return {
+            'id': obj.action.id,
+            'name': obj.action.name,
+            'description': obj.action.description
+        }
+
+
+class TaskDetailSerializer(serializers.ModelSerializer):
+    process = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+    task_data = TaskDataSerializer(source='taskdata_set', many=True)
+    action_logs = TaskActionLogSerializer(source='taskactionlog_set', many=True)
+    available_actions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'process', 'state', 'created_by', 'created_at',
+            'task_data', 'action_logs', 'available_actions'
+        ]
+
+    def get_process(self, obj):
+        return {
+            'id': obj.process.id,
+            'name': obj.process.name
+        }
+
+    def get_state(self, obj):
+        return {
+            'id': obj.state.id,
+            'name': obj.state.name
+        }
+
+    def get_created_by(self, obj):
+        return {
+            'id': obj.created_by.id,
+            'username': obj.created_by.username
+        }
+
+    def get_available_actions(self, obj):
+        user = self.context['request'].user
+        transitions = obj.state.transitions_from.filter(
+            actiontransition__action__processuseraction__user=user
+        ).distinct()
+
+        return [
+            {
+                'id': t.actiontransition.action.id,
+                'name': t.actiontransition.action.name,
+                'description': t.actiontransition.action.description
+            }
+            for t in transitions if hasattr(t, 'actiontransition')
+        ]

@@ -8,7 +8,7 @@ from task.serializers import TaskCreateSerializer
 
 from .models import Task
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
-                          TaskActionSerializer)
+                          TaskActionSerializer, TaskDetailSerializer)
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -50,3 +50,9 @@ class TaskActionView(APIView):
             serializer.save()
             return Response({"detail": "Action performed successfully."})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+class TaskDetailView(generics.RetrieveAPIView):
+    queryset = Task.objects.all()
+    serializer_class = TaskDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
