@@ -24,19 +24,6 @@ class TaskData(models.Model):
         return f"{self.task} - {self.field}: {self.value}"
     
 
-class TaskUser(models.Model): # stakeholder
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='stakeholder')
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    
-    class Meta:
-        constraints = [
-        models.UniqueConstraint(fields=['task', 'user'], name='unique_request_user')
-    ]
-        
-    def __str__(self):
-        return f"{self.user} - {self.task}"
-    
-
 class TaskActionLog(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
