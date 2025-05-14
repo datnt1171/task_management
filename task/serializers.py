@@ -13,10 +13,11 @@ class SentTaskSerializer(serializers.ModelSerializer):
     process = TaskProcessSerializer(read_only=True)
     recipient = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
+    state_type = serializers.CharField(source='state.state_type.name')
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'process', 'state', 'created_at', 'recipient']
+        fields = ['id', 'title', 'process', 'state','state_type', 'created_at', 'recipient']
 
     def get_recipient(self, obj):
         # Get user who can act on this task
@@ -40,10 +41,11 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
     created_by = serializers.SerializerMethodField()
     action = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
+    state_type = serializers.CharField(source='state.state_type.name')
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'process', 'state', 'created_by', 'action']
+        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action']
 
     def get_created_by(self, obj):
         return obj.created_by.username
@@ -151,3 +153,5 @@ class TaskActionSerializer(serializers.Serializer):
         # Log the action
         TaskActionLog.objects.create(task=task, user=user, action=action)
         return task
+    
+    
