@@ -4,7 +4,7 @@ from .models import Process, ProcessField
 class ProcessFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessField
-        fields = ['id', 'name', 'field_type', 'required', 'options']
+        fields = ['id', 'name', 'field_type', 'required', 'options','order']
 
 class ProcessSerializer(serializers.ModelSerializer):
     fields = ProcessFieldSerializer(many=True, read_only=True)

@@ -58,17 +58,20 @@ class FieldType(models.TextChoices):
     CHECKBOX = 'checkbox', 'Checkbox'
     FILE = 'file', 'File'
     JSON = 'json', 'Table'
+    ASSIGNEE = 'assignee', 'Assignee'
 
 
 class ProcessField(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(max_length=255)
     field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)
+    order = models.PositiveIntegerField(default=0)
     required = models.BooleanField(default=False)
     options = models.JSONField(blank=True, null=True)
 
     class Meta:
         unique_together = ('process', 'name')
+        ordering = ['order']
 
     def __str__(self):
         return f"{self.process.name} - {self.name} ({self.field_type})"
