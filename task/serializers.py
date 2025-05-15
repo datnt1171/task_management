@@ -226,15 +226,21 @@ class TaskDetailSerializer(serializers.ModelSerializer):
 
     def get_available_actions(self, obj):
         user = self.context['request'].user
-        transitions = obj.state.transitions_from.filter(
-            actiontransition__action__processuseraction__user=user
-        ).distinct()
+        transitions = Transition.objects.filter(
+            process=obj.process,
+            current_state=obj.state
+        )
+        actions = Action.objects.filter(
+            actiontransition__transition__in=transitions,
+            processuseraction__user=user,
+            processuseraction__process=obj.process
+        ).select_related('action_type').distinct()
 
         return [
             {
-                'id': t.actiontransition.action.id,
-                'name': t.actiontransition.action.name,
-                'description': t.actiontransition.action.description
-            }
-            for t in transitions if hasattr(t, 'actiontransition')
+                'id': action.id,
+                'name': action.name,
+                'description': action.description,
+                'type': action.action_type.name  # get the name of related ActionType
+            } for action in actions
         ]
