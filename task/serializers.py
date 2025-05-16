@@ -170,25 +170,20 @@ class TaskDataSerializer(serializers.ModelSerializer):
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):
-    user = serializers.SerializerMethodField()
-    action = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    action_id = serializers.IntegerField(source='action.id', read_only=True)
+    action_name = serializers.CharField(source='action.name', read_only=True)
+    action_description = serializers.CharField(source='action.description', read_only=True)
 
     class Meta:
         model = TaskActionLog
-        fields = ['id', 'user', 'action', 'timestamp']
-
-    def get_user(self, obj):
-        return {
-            'id': obj.user.id,
-            'username': obj.user.username
-        }
-
-    def get_action(self, obj):
-        return {
-            'id': obj.action.id,
-            'name': obj.action.name,
-            'description': obj.action.description
-        }
+        fields = [
+            'id',
+            'user_id', 'username',
+            'action_id', 'action_name', 'action_description',
+            'timestamp'
+        ]
 
 
 class TaskDetailSerializer(serializers.ModelSerializer):
