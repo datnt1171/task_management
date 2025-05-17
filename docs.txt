@@ -220,3 +220,215 @@ Project Overview
     └── manage.py
     └── requirements.txt
     └── test_api.http
+
+
+API documentation
+http://localhost:8000/api/processes/
+{
+  "count": 123,
+  "next": "http://api.example.org/accounts/?offset=400&limit=100",
+  "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+  "results": [
+    {
+      "id": 0,
+      "name": "string",
+      "description": "string",
+      "fields": [
+        {
+          "id": 0,
+          "name": "string",
+          "field_type": "text",
+          "required": true,
+          "options": null,
+          "order": 2147483647
+        }
+      ]
+    }
+  ]
+}
+
+http://localhost:8000/api/processes/{id}/
+{
+  "id": 0,
+  "name": "string",
+  "description": "string",
+  "fields": [
+    {
+      "id": 0,
+      "name": "string",
+      "field_type": "text",
+      "required": true,
+      "options": null,
+      "order": 2147483647
+    }
+  ]
+}
+
+http://localhost:8000/api/tasks/
+{
+  "process": 0,
+  "title": "string",
+  "fields": [
+    {
+      "field_id": 0,
+      "value": "string"
+    }
+  ]
+}
+
+http://localhost:8000/api/tasks/{id}/
+{
+  "id": 0,
+  "title": "string",
+  "process": {
+    "id": 0,
+    "name": "string"
+  },
+  "state": {
+    "id": 0,
+    "name": "string",
+    "state_type": "string"
+  },
+  "created_by": {
+    "id": 0,
+    "username": "string"
+  },
+  "created_at": "2019-08-24T14:15:22Z",
+  "task_data": [
+    {
+      "field": "string",
+      "value": "string"
+    }
+  ],
+  "action_logs": [
+    {
+      "id": 0,
+      "user": {
+        "id": 0,
+        "username": "string"
+      },
+      "action": "string",
+      "task_title": "string",
+      "timestamp": "2019-08-24T14:15:22Z"
+    }
+  ],
+  "available_actions": "string"
+}
+
+http://localhost:8000/api/tasks/{id}/action/
+{
+  "count": 123,
+  "next": "http://api.example.org/accounts/?offset=400&limit=100",
+  "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+  "results": [
+    {
+      "id": 0,
+      "title": "string",
+      "process": {
+        "id": 0,
+        "name": "string"
+      },
+      "state": "string",
+      "state_type": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "created_by": "string",
+      "action": "string"
+    }
+  ]
+}
+
+http://localhost:8000/api/tasks/received/
+{
+  "count": 123,
+  "next": "http://api.example.org/accounts/?offset=400&limit=100",
+  "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+  "results": [
+    {
+      "id": 0,
+      "title": "string",
+      "process": {
+        "id": 0,
+        "name": "string"
+      },
+      "state": "string",
+      "state_type": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "created_by": "string",
+      "action": "string"
+    }
+  ]
+}
+
+http://localhost:8000/api/tasks/sent/
+{
+  "count": 123,
+  "next": "http://api.example.org/accounts/?offset=400&limit=100",
+  "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+  "results": [
+    {
+      "id": 0,
+      "title": "string",
+      "process": {
+        "id": 0,
+        "name": "string"
+      },
+      "state": "string",
+      "state_type": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "recipient": "string"
+    }
+  ]
+}
+
+http://localhost:8000/api/token/
+{
+  "username": "string",
+  "password": "string"
+}
+
+http://localhost:8000/api/token/refresh/
+
+{
+  "refresh": "string"
+}
+
+http://localhost:8000/api/users/
+
+{
+  "count": 123,
+  "next": "http://api.example.org/accounts/?offset=400&limit=100",
+  "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+  "results": [
+    {
+      "id": 0,
+      "username": "^w$",
+      "first_name": "string",
+      "last_name": "string",
+      "department": {
+        "id": 0,
+        "name": "string"
+      },
+      "role": {
+        "id": 0,
+        "name": "string"
+      }
+    }
+  ]
+}
+
+http://localhost:8000/api/users/me/
+
+{
+  "id": 0,
+  "username": "^w$",
+  "first_name": "string",
+  "last_name": "string",
+  "department": {
+    "id": 0,
+    "name": "string"
+  },
+  "role": {
+    "id": 0,
+    "name": "string"
+  }
+}
