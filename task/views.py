@@ -1,14 +1,13 @@
-# task/views.py
-
+from django.db.models import Prefetch
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from task.serializers import TaskCreateSerializer
 
-from .models import Task
+from .models import Task, TaskActionLog, TaskData
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
-                          TaskActionSerializer, TaskDetailSerializer)
+                          TaskActionSerializer, TaskDetailSerializer, TaskActionLogSerializer)
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -53,6 +52,21 @@ class TaskActionView(APIView):
     
     
 class TaskDetailView(generics.RetrieveAPIView):
-    queryset = Task.objects.all()
     serializer_class = TaskDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Task.objects.select_related(
+            'process', 'state', 'created_by'
+        ).prefetch_related(
+            Prefetch(
+                'taskactionlog_set',
+                queryset=TaskActionLog.objects.select_related('user', 'action__action_type')
+            ),
+            Prefetch(
+                'taskdata_set',
+                queryset=TaskData.objects.select_related('field')
+            )
+        )
+        
+        

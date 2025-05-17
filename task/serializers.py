@@ -20,20 +20,18 @@ class SentTaskSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'process', 'state','state_type', 'created_at', 'recipient']
 
     def get_recipient(self, obj):
-        # Get user who can act on this task
         request = self.context['request']
-        action = (
-            obj.state
-              .transitions_from
-              .first()
-              .actiontransition_set
-              .filter(action__process=obj.process)
-              .first()
-        )
-        if action:
-            user_action = action.action.processuseraction_set.first()
-            return user_action.user.username if user_action else None
-        return None
+
+        transition = obj.state.transitions_from.first()
+        if not transition:
+            return None
+
+        action_transition = transition.actiontransition_set.filter(action__process=obj.process).first()
+        if not action_transition:
+            return None
+
+        user_action = action_transition.action.processuseraction_set.first()
+        return user_action.user.username if user_action else None
 
 
 class ReceivedTaskSerializer(serializers.ModelSerializer):
@@ -155,6 +153,19 @@ class TaskActionSerializer(serializers.Serializer):
         return task
     
     
+class TaskProcessSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+class TaskStateSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    state_type = serializers.CharField(source='state_type.name', default=None)
+
+class TaskUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
 
@@ -168,28 +179,30 @@ class TaskDataSerializer(serializers.ModelSerializer):
             'name': obj.field.name
         }
 
-
 class TaskActionLogSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(source='user.id', read_only=True)
-    username = serializers.CharField(source='user.username', read_only=True)
-    action_id = serializers.IntegerField(source='action.id', read_only=True)
-    action_name = serializers.CharField(source='action.name', read_only=True)
-    action_description = serializers.CharField(source='action.description', read_only=True)
+    user = TaskUserSerializer()
+    action = serializers.SerializerMethodField()
+    task_title = serializers.SerializerMethodField()  # 👈 Add this
 
     class Meta:
         model = TaskActionLog
-        fields = [
-            'id',
-            'user_id', 'username',
-            'action_id', 'action_name', 'action_description',
-            'timestamp'
-        ]
+        fields = ['id', 'user', 'action', 'task_title', 'timestamp']
 
+    def get_action(self, obj):
+        return {
+            'id': obj.action.id,
+            'name': obj.action.name,
+            'description': obj.action.description,
+            'type': obj.action.action_type.name if obj.action.action_type else None
+        }
+
+    def get_task_title(self, obj):
+        return obj.task.title
 
 class TaskDetailSerializer(serializers.ModelSerializer):
-    process = serializers.SerializerMethodField()
-    state = serializers.SerializerMethodField()
-    created_by = serializers.SerializerMethodField()
+    process = TaskProcessSerializer()
+    state = TaskStateSerializer()
+    created_by = TaskUserSerializer()
     task_data = TaskDataSerializer(source='taskdata_set', many=True)
     action_logs = TaskActionLogSerializer(source='taskactionlog_set', many=True)
     available_actions = serializers.SerializerMethodField()
@@ -201,22 +214,11 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'task_data', 'action_logs', 'available_actions'
         ]
 
-    def get_process(self, obj):
-        return {
-            'id': obj.process.id,
-            'name': obj.process.name
-        }
-
     def get_state(self, obj):
         return {
             'id': obj.state.id,
-            'name': obj.state.name
-        }
-
-    def get_created_by(self, obj):
-        return {
-            'id': obj.created_by.id,
-            'username': obj.created_by.username
+            'name': obj.state.name,
+            'type': obj.state.state_type.name if obj.state.state_type else None
         }
 
     def get_available_actions(self, obj):
@@ -236,6 +238,6 @@ class TaskDetailSerializer(serializers.ModelSerializer):
                 'id': action.id,
                 'name': action.name,
                 'description': action.description,
-                'type': action.action_type.name  # get the name of related ActionType
+                'type': action.action_type.name if action.action_type else None
             } for action in actions
         ]
