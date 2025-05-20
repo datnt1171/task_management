@@ -11,6 +11,8 @@ class ProcessViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        qs = Process.objects.filter(is_active=True).prefetch_related('fields')
+        
         if user.is_staff:
-            return Process.objects.prefetch_related('fields').all()
-        return Process.objects.filter(allowed_users__user=user).prefetch_related('fields').distinct()
+            return qs
+        return qs.filter(allowed_users__user=user).distinct()
