@@ -29,7 +29,7 @@ def generate_task_title(process: Process) -> str:
 
 
 class Task(models.Model):
-    
+    title = models.CharField(max_length=255, unique=True, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -86,7 +86,7 @@ class TaskData(models.Model):
     
 
 class TaskActionLog(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="action_logs")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
     comment = models.TextField(null=True, blank=True)

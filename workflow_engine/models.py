@@ -56,8 +56,3 @@ class ActionTransition(models.Model):
         
     def __str__(self):
         return f"{self.transition.process} - {self.transition.current_state} - {self.action} - {self.transition.next_state}"
-
-
-
-    
-    

@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
 
@@ -20,7 +20,7 @@ class Role(models.Model):
         return self.name
 
 
-class UserManager(models.Manager):
+class UserManager(BaseUserManager):
     def active(self):
         return self.filter(is_active=True)
     
