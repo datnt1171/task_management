@@ -1,19 +1,16 @@
+import json
+from django.core.files.storage import default_storage
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog
-from process.models import Process, ProcessField, Action
+from process.models import ProcessField, Action
 from workflow_engine.models import State, Transition
-
-class TaskProcessSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Process
-        fields = ['name']
 
 
 class SentTaskSerializer(serializers.ModelSerializer):
-    process = TaskProcessSerializer(read_only=True)
+    process = serializers.CharField(source='process.name')
     recipient = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
-    state_type = serializers.CharField(source='state.state_type.name')
+    state_type = serializers.CharField(source='state.state_type')
 
     class Meta:
         model = Task
@@ -35,7 +32,7 @@ class SentTaskSerializer(serializers.ModelSerializer):
 
 
 class ReceivedTaskSerializer(serializers.ModelSerializer):
-    process = TaskProcessSerializer(read_only=True)
+    process = serializers.CharField(source='process.name')
     created_by = serializers.SerializerMethodField()
     action = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
@@ -63,25 +60,36 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
         
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.IntegerField()
-    value = serializers.CharField()
+    value = serializers.CharField(allow_blank=True, allow_null=True)
+    file = serializers.FileField(required=False)
+    json_value = serializers.JSONField(required=False)
+
+    def validate(self, data):
+        if 'file' in data:
+            # Save file and replace value with file path
+            uploaded_file = data['file']
+            path = default_storage.save(f"uploads/task_data_files/{uploaded_file.name}", uploaded_file)
+            data['value'] = path
+        elif 'json_value' in data:
+            data['value'] = json.dumps(data['json_value'])  # Store JSON as string
+        return data
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     fields = TaskDataInputSerializer(many=True, write_only=True)
-    
+
     class Meta:
         model = Task
-        fields = ['process', 'title', 'fields']
-    
+        fields = ['process', 'fields']
+
     def create(self, validated_data):
         user = self.context['request'].user
         process = validated_data['process']
-        title = validated_data['title']
         field_data = validated_data.pop('fields')
 
         # Get the start state for this process
         start_state = State.objects.filter(
-            state_type__name__exact='start',
+            state_type='start',
             transitions_from__process=process
         ).distinct().first()
 
@@ -90,13 +98,17 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         task = Task.objects.create(
             process=process,
-            title=title,
             created_by=user,
             state=start_state
         )
 
         for field in field_data:
-            field_obj = ProcessField.objects.get(id=field['field_id'], process=process)
+            field_id = field['field_id']
+            try:
+                field_obj = ProcessField.objects.get(id=field_id, process=process)
+            except ProcessField.DoesNotExist:
+                raise serializers.ValidationError(f"Field ID {field_id} not found for this process.")
+
             TaskData.objects.create(
                 task=task,
                 field=field_obj,
@@ -182,11 +194,11 @@ class TaskDataSerializer(serializers.ModelSerializer):
 class TaskActionLogSerializer(serializers.ModelSerializer):
     user = TaskUserSerializer()
     action = serializers.SerializerMethodField()
-    task_title = serializers.SerializerMethodField()  # 👈 Add this
+    task_title = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskActionLog
-        fields = ['id', 'user', 'action', 'task_title', 'timestamp']
+        fields = ['id', 'user', 'action', 'task_title', 'created_at']
 
     def get_action(self, obj):
         return {
@@ -203,15 +215,15 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     process = TaskProcessSerializer()
     state = TaskStateSerializer()
     created_by = TaskUserSerializer()
-    task_data = TaskDataSerializer(source='taskdata_set', many=True)
-    action_logs = TaskActionLogSerializer(source='taskactionlog_set', many=True)
+    data = TaskDataSerializer(many=True)
+    action_logs = TaskActionLogSerializer(many=True)
     available_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'process', 'state', 'created_by', 'created_at',
-            'task_data', 'action_logs', 'available_actions'
+            'data', 'action_logs', 'available_actions'
         ]
 
     def get_state(self, obj):
