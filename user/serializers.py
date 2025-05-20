@@ -14,13 +14,27 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
         
 
-class UserSerializer(serializers.ModelSerializer):
-    
+class UserProfileSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer()
     role = RoleSerializer()
+    manager = serializers.SerializerMethodField()
 
-    
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'department', 'role']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'department', 'role', 'manager']
+
+    def get_manager(self, obj):
+        if obj.manager:
+            return {
+                'id': obj.manager.id,
+                'username': obj.manager.username,
+                'first_name': obj.manager.first_name,
+                'last_name': obj.manager.last_name,
+            }
+        return None
+
+class UserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name']
         

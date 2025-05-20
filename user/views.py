@@ -1,17 +1,22 @@
-from rest_framework import generics, permissions
+# user/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import User
-from .serializers import UserSerializer
+from .serializers import UserProfileSerializer, UserListSerializer
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
 
 
-class UserListView(generics.ListAPIView):
-    queryset = User.objects.select_related('department', 'role').all()
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    
-class UserMeView(generics.RetrieveAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_object(self):
-        return self.request.user
+class UserListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = User.objects.filter(is_active=True)
+        serializer = UserListSerializer(users, many=True)
+        return Response(serializer.data)
