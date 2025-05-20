@@ -18,6 +18,8 @@ class State(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     state_type = models.CharField(max_length=255, choices=StateType.choices, default=StateType.START)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)    
     
     def __str__(self):
         return self.name
@@ -27,10 +29,13 @@ class Transition(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     current_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='transitions_from')
     next_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='transitions_to')
-    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+      
     def clean(self):
         if self.current_state == self.next_state:
             raise ValidationError("Current state and next state cannot be the same.")
+    
     
     class Meta:
         unique_together = ('process', 'current_state', 'next_state')
@@ -42,7 +47,8 @@ class Transition(models.Model):
 class ActionTransition(models.Model):
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
     transition = models.ForeignKey(Transition, on_delete=models.CASCADE)
-    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)    
     class Meta:
         constraints = [
         models.UniqueConstraint(fields=['action', 'transition'], name='unique_action_transition')
