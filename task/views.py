@@ -25,7 +25,7 @@ class ReceivedTasksAPIView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Task.objects.filter(
-            state__transitions_from__actiontransition__action__processuseraction__user=user
+            state__transitions_from__actiontransition__action__user_permissions__user=user
         ).distinct()
 
 
@@ -59,11 +59,11 @@ class TaskDetailView(generics.RetrieveAPIView):
             'process', 'state', 'created_by'
         ).prefetch_related(
             Prefetch(
-                'taskactionlog_set',
-                queryset=TaskActionLog.objects.select_related('user', 'action__action_type')
+                'action_logs',
+                queryset=TaskActionLog.objects.select_related('user')
             ),
             Prefetch(
-                'taskdata_set',
+                'data',
                 queryset=TaskData.objects.select_related('field')
             )
         )

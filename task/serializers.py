@@ -27,35 +27,30 @@ class SentTaskSerializer(serializers.ModelSerializer):
         if not action_transition:
             return None
 
-        user_action = action_transition.action.processuseraction_set.first()
+        user_action = action_transition.action.user_permissions.first()
         return user_action.user.username if user_action else None
 
 
 class ReceivedTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
-    created_by = serializers.SerializerMethodField()
+    created_by = serializers.CharField(source='created_by.username')
     action = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
-    state_type = serializers.CharField(source='state.state_type.name')
+    state_type = serializers.CharField(source='state.state_type')
 
     class Meta:
         model = Task
         fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action']
 
-    def get_created_by(self, obj):
-        return obj.created_by.username
-
     def get_action(self, obj):
         user = self.context['request'].user
-        return (
-            obj.state
-              .transitions_from
-              .filter(
-                  actiontransition__action__processuseraction__user=user
-              )
-              .values_list('actiontransition__action__name', flat=True)
-              .first()
-        )
+
+        transitions = obj.state.transitions_from.filter(process=obj.process)
+        for transition in transitions:
+            for action_transition in transition.actiontransition_set.all():
+                if action_transition.action.user_permissions.filter(user=user).exists():
+                    return action_transition.action.name
+        return None
      
         
 class TaskDataInputSerializer(serializers.Serializer):
@@ -120,23 +115,21 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
 class TaskActionSerializer(serializers.Serializer):
     action_id = serializers.IntegerField()
+    comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, attrs):
         user = self.context['request'].user
         task = self.context['task']
         action_id = attrs['action_id']
 
-        # Check if action exists
         try:
             action = Action.objects.get(id=action_id, process=task.process)
         except Action.DoesNotExist:
             raise serializers.ValidationError("Invalid action for this process.")
 
-        # Check user permission
         if not task.process.processuseraction_set.filter(user=user, action=action).exists():
             raise serializers.ValidationError("User not permitted to perform this action.")
 
-        # Validate that the action is allowed from the current state
         try:
             transition = Transition.objects.get(
                 process=task.process,
@@ -155,13 +148,18 @@ class TaskActionSerializer(serializers.Serializer):
         user = self.context['request'].user
         action = self.validated_data['action']
         transition = self.validated_data['transition']
+        comment = self.validated_data.get('comment', '')
 
-        # Update task state
         task.state = transition.next_state
         task.save()
 
-        # Log the action
-        TaskActionLog.objects.create(task=task, user=user, action=action)
+        TaskActionLog.objects.create(
+            task=task,
+            user=user,
+            action=action,
+            comment=comment
+        )
+
         return task
     
     
@@ -194,26 +192,22 @@ class TaskDataSerializer(serializers.ModelSerializer):
 class TaskActionLogSerializer(serializers.ModelSerializer):
     user = TaskUserSerializer()
     action = serializers.SerializerMethodField()
-    task_title = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskActionLog
-        fields = ['id', 'user', 'action', 'task_title', 'created_at']
+        fields = ['id', 'user', 'action', 'created_at', 'comment']
 
     def get_action(self, obj):
         return {
             'id': obj.action.id,
             'name': obj.action.name,
             'description': obj.action.description,
-            'type': obj.action.action_type.name if obj.action.action_type else None
+            'type': obj.action.get_action_type_display()
         }
-
-    def get_task_title(self, obj):
-        return obj.task.title
 
 class TaskDetailSerializer(serializers.ModelSerializer):
     process = TaskProcessSerializer()
-    state = TaskStateSerializer()
+    state = serializers.SerializerMethodField()
     created_by = TaskUserSerializer()
     data = TaskDataSerializer(many=True)
     action_logs = TaskActionLogSerializer(many=True)
@@ -230,7 +224,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         return {
             'id': obj.state.id,
             'name': obj.state.name,
-            'type': obj.state.state_type.name if obj.state.state_type else None
+            'type': obj.state.get_state_type_display()
         }
 
     def get_available_actions(self, obj):
@@ -241,15 +235,15 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         )
         actions = Action.objects.filter(
             actiontransition__transition__in=transitions,
-            processuseraction__user=user,
-            processuseraction__process=obj.process
-        ).select_related('action_type').distinct()
+            user_permissions__user=user,
+            user_permissions__process=obj.process
+        ).distinct()
 
         return [
             {
                 'id': action.id,
                 'name': action.name,
                 'description': action.description,
-                'type': action.action_type.name if action.action_type else None
+                'type': action.get_action_type_display()
             } for action in actions
         ]
