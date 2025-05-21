@@ -24,4 +24,5 @@ urlpatterns = [
     path('api/users/', include('user.urls')),
     # path('workflow_engine/', include('workflow_engine.urls')),
     path('api/tasks/', include('task.urls')),
+    path('api/edms/', include('edms.urls'))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
