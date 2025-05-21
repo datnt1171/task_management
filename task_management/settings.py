@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'task',
     'user',
     'workflow_engine',
+    'edms',
     
 ]
 
