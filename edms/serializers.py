@@ -1,76 +1,35 @@
 from rest_framework import serializers
-from .models import Document, DocumentVersion, DocumentSigner, DocumentSignature
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from .models import Category, Document, SignatureRequest, SignatureLog
+from user.models import User
 
 
-class DocumentSignatureSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
-
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = DocumentSignature
-        fields = ['id', 'user', 'signed_at', 'signature_file', 'comment']
+        model = Category
+        fields = ['id', 'name', 'code']
 
 
-class DocumentSignerSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
-
+class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DocumentSigner
-        fields = ['id', 'user', 'order', 'required']
+        model = Document
+        fields = ['id', 'title', 'description', 'version_number', 'file', 'file_size', 'created_at']
 
 
 class DocumentVersionSerializer(serializers.ModelSerializer):
-    uploaded_by = serializers.StringRelatedField()
-    signatures = DocumentSignatureSerializer(many=True, read_only=True)
-    allowed_signers = DocumentSignerSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = DocumentVersion
-        fields = ['id', 'version_number', 'file', 'uploaded_by', 'uploaded_at', 'notes', 'signatures', 'allowed_signers']
-
-
-class DocumentListSerializer(serializers.ModelSerializer):
-    versions = serializers.SerializerMethodField()
+    signature_logs = serializers.StringRelatedField(many=True, read_only=True)
 
     class Meta:
         model = Document
-        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'versions']
-
-    def get_versions(self, obj):
-        latest = obj.versions.order_by('-version_number').first()
-        return DocumentVersionSerializer(latest).data if latest else None
+        fields = ['id', 'title', 'version_number', 'file', 'signature_logs', 'created_at']
 
 
-class DocumentDetailSerializer(serializers.ModelSerializer):
-    versions = DocumentVersionSerializer(many=True, read_only=True)
-    created_by = serializers.StringRelatedField()
-
+class SignatureRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Document
-        fields = ['id', 'title', 'description', 'created_by', 'created_at', 'versions']
+        model = SignatureRequest
+        fields = ['signer', 'page_number', 'x_position', 'y_position', 'width', 'height']
 
 
-class SignDocumentSerializer(serializers.ModelSerializer):
+class SignatureLogCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DocumentSignature
-        fields = ['version', 'signature_file', 'comment']
-
-    def validate(self, data):
-        user = self.context['request'].user
-        version = data['version']
-
-        # Check if user is allowed signer
-        if not DocumentSigner.objects.filter(version=version, user=user).exists():
-            raise serializers.ValidationError("You are not allowed to sign this document.")
-
-        # Check if already signed
-        if DocumentSignature.objects.filter(version=version, user=user).exists():
-            raise serializers.ValidationError("You have already signed this document.")
-
-        return data
-
-    def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+        model = SignatureLog
+        fields = ['signature_file']

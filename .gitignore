@@ -160,3 +160,4 @@ db/
 node_modules/
 *.http
 *.sql
+media/
