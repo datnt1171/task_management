@@ -70,17 +70,17 @@ class Action(models.Model):
 class RoleType(models.TextChoices):
     REQUESTOR = 'requestor', 'Task Requestor'
     REQUESTOR_MANAGER = 'requestor_manager', 'Requestor Manager'
-    DEPARTMENT_HEAD = 'department_head', 'Department Head'
+    REQUESTOR_DEPARTMENT_HEAD = 'requestor_department_head', 'Requestor Department Head'
+    SPECIFIC_DEPARTMENT_HEAD = 'specific_department_head', 'Specific Department Head'
     ASSIGNEE = 'assignee', 'Task Assignee'
     SPECIFIC_USER = 'specific_user', 'Specific User'
     SPECIFIC_ROLE = 'specific_role', 'Specific Role'
     SPECIFIC_DEPARTMENT = 'specific_department', 'Specific Department'
 
-
 class ProcessActionRole(models.Model):
-    """Defines WHO can perform ACTIONS based on roles/relationships"""
+    """Defines WHO can perform actions based on roles/relationships"""
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
-    action = models.ForeignKey(Action, on_delete=models.CASCADE, related_name='user_permissions')
+    action = models.ForeignKey(Action, on_delete=models.CASCADE)
     role_type = models.CharField(max_length=50, choices=RoleType.choices)
     
     # Optional specific constraints
@@ -90,7 +90,6 @@ class ProcessActionRole(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
     
     class Meta:
         constraints = [
