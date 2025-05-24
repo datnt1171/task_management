@@ -1,15 +1,23 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from user.models import User
+from user.models import User, Role, Department
+
+
+class ProcessManager(models.Manager):
+    def active(self):
+        return self.filter(is_active=True)
+
 
 class Process(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     version = models.CharField(max_length=255)
+    prefix = models.CharField(max_length=10)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    objects = ProcessManager()
     
     class Meta:
         constraints = [
@@ -21,10 +29,11 @@ class Process(models.Model):
 
 
 class ProcessUser(models.Model): #Allowed_users
-    process = models.ForeignKey(Process, null=True, on_delete=models.SET_NULL, related_name='allowed_users')
-    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    process = models.ForeignKey(Process, null=True, on_delete=models.CASCADE, related_name='allowed_users')
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
     
     class Meta:
         constraints = [
@@ -46,7 +55,6 @@ class ActionType(models.TextChoices):
     CANCEL = 'cancel', 'Cancel'
     
     
-
 class Action(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
@@ -59,21 +67,51 @@ class Action(models.Model):
         return f"{self.name} ({self.get_action_type_display()})"
     
     
-class ProcessUserAction(models.Model): #Permission
+class RoleType(models.TextChoices):
+    REQUESTOR = 'requestor', 'Task Requestor'
+    REQUESTOR_MANAGER = 'requestor_manager', 'Requestor Manager'
+    DEPARTMENT_HEAD = 'department_head', 'Department Head'
+    ASSIGNEE = 'assignee', 'Task Assignee'
+    SPECIFIC_USER = 'specific_user', 'Specific User'
+    SPECIFIC_ROLE = 'specific_role', 'Specific Role'
+    SPECIFIC_DEPARTMENT = 'specific_department', 'Specific Department'
+
+
+class ProcessActionRole(models.Model):
+    """Defines WHO can perform ACTIONS based on roles/relationships"""
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE, related_name='user_permissions')
+    role_type = models.CharField(max_length=50, choices=RoleType.choices)
+    
+    # Optional specific constraints
+    specific_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    specific_role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True, blank=True)
+    specific_department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)    
+    updated_at = models.DateTimeField(auto_now=True)
+    
     
     class Meta:
         constraints = [
-        models.UniqueConstraint(fields=['process', 'user', 'action'], name='unique_process_user_action')
-    ]
-        
-    def __str__(self):
-        return f"{self.process} - {self.user} - {self.action}"
+            models.UniqueConstraint(
+                fields=['process', 'action', 'role_type', 'specific_user', 'specific_role', 'specific_department'], 
+                name='unique_process_action_role'
+            )
+        ]
     
+    def clean(self):
+        # Validation logic
+        if self.role_type == RoleType.SPECIFIC_USER and not self.specific_user:
+            raise ValidationError("Specific user required for SPECIFIC_USER role type")
+        if self.role_type == RoleType.SPECIFIC_ROLE and not self.specific_role:
+            raise ValidationError("Specific role required for SPECIFIC_ROLE role type")
+        if self.role_type == RoleType.SPECIFIC_DEPARTMENT and not self.specific_department:
+            raise ValidationError("Specific department required for SPECIFIC_DEPARTMENT role type")
+            
+    def __str__(self):
+        return f"{self.process} - {self.action} - {self.get_role_type_display()}"
+
 
 class FieldType(models.TextChoices):
     TEXT = 'text', 'Text'

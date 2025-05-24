@@ -31,14 +31,16 @@ class Transition(models.Model):
     next_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='transitions_to')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-      
+    
     def clean(self):
         if self.current_state == self.next_state:
             raise ValidationError("Current state and next state cannot be the same.")
     
     
     class Meta:
-        unique_together = ('process', 'current_state', 'next_state')
+        constraints = [
+            models.UniqueConstraint(fields=['process', 'current_state', 'next_state'], name='unique_transition')
+        ]
     
     def __str__(self):
         return f"{self.process} - {self.current_state} - {self.next_state}"

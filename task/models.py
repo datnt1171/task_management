@@ -4,21 +4,11 @@ from process.models import Process, Action, ProcessField
 from workflow_engine.models import State
 from django.utils.timezone import now
 
-
-def get_process_prefix(process_name: str) -> str:
-    mapping = {
-        "purchase request": "PR",
-        "common task": "COM",
-        "maintenance request": "BT",
-    }
-    return mapping.get(process_name, "XX")
-
 def generate_task_title(process: Process) -> str:
-    prefix = get_process_prefix(process.name)  # e.g., "BT"
+    prefix = process.prefix or "XX"
     current_time = now()
     year_month = current_time.strftime('%y%m')
 
-    # Count tasks for this process created in the current month
     task_count = Task.objects.filter(
         process=process,
         created_at__year=current_time.year,

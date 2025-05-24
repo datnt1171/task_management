@@ -26,8 +26,16 @@ class UserManager(BaseUserManager):
     
     
 class User(AbstractUser):
-    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
+    department = models.ForeignKey(Department, 
+                                   on_delete=models.PROTECT, 
+                                   null=True, 
+                                   blank=True,
+                                   related_name='users')
+    role = models.ForeignKey(Role, 
+                             on_delete=models.PROTECT, 
+                             null=True, 
+                             blank=True,
+                             related_name='users')
     manager = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -37,5 +45,13 @@ class User(AbstractUser):
     )
     objects = UserManager()
 
+    @property
+    def full_name(self):
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.username
+
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.username})"
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name} ({self.username})"
+        return self.username
