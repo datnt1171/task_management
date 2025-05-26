@@ -1,9 +1,12 @@
 import json
 from django.core.files.storage import default_storage
+from django.db import transaction
 from rest_framework import serializers
+from django.utils.timezone import now
 from .models import Task, TaskData, TaskActionLog
 from process.models import ProcessField, Action
 from workflow_engine.models import State, Transition
+from .permission_service import PermissionService
 
 
 class SentTaskSerializer(serializers.ModelSerializer):
@@ -14,59 +17,71 @@ class SentTaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'process', 'state','state_type', 'created_at', 'recipient']
+        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'recipient']
 
     def get_recipient(self, obj):
-        request = self.context['request']
+        """
+        Try to identify a user who is allowed to act on the task from the start state.
+        """
+        possible_actions = Action.objects.filter(
+            actiontransition__transition__current_state=obj.state,
+            process=obj.process
+        ).distinct()
 
-        transition = obj.state.transitions_from.first()
-        if not transition:
-            return None
-
-        action_transition = transition.actiontransition_set.filter(action__process=obj.process).first()
-        if not action_transition:
-            return None
-
-        user_action = action_transition.action.user_permissions.first()
-        return user_action.user.username if user_action else None
+        for action in possible_actions:
+            allowed_users = PermissionService.get_allowed_users_for_action(obj, action)
+            for user in allowed_users:
+                return user.username
+        return None
 
 
 class ReceivedTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
     created_by = serializers.CharField(source='created_by.username')
-    action = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
     state_type = serializers.CharField(source='state.state_type')
+    action = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action']
 
     def get_action(self, obj):
+        """
+        Return the name of the first action the current user is allowed to perform on this task.
+        """
         user = self.context['request'].user
+        possible_actions = Action.objects.filter(
+            actiontransition__transition__current_state=obj.state,
+            process=obj.process
+        ).distinct()
 
-        transitions = obj.state.transitions_from.filter(process=obj.process)
-        for transition in transitions:
-            for action_transition in transition.actiontransition_set.all():
-                if action_transition.action.user_permissions.filter(user=user).exists():
-                    return action_transition.action.name
+        for action in possible_actions:
+            if PermissionService.user_can_perform_action(user, obj, action):
+                return action.name
         return None
      
         
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.IntegerField()
-    value = serializers.CharField(allow_blank=True, allow_null=True)
+    value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     file = serializers.FileField(required=False)
     json_value = serializers.JSONField(required=False)
 
     def validate(self, data):
-        if 'file' in data:
-            # Save file and replace value with file path
-            uploaded_file = data['file']
-            path = default_storage.save(f"uploads/task_data_files/{uploaded_file.name}", uploaded_file)
-            data['value'] = path
-        elif 'json_value' in data:
-            data['value'] = json.dumps(data['json_value'])  # Store JSON as string
+        file = data.get("file")
+        json_val = data.get("json_value")
+
+        if file:
+            filename = f"uploads/task_data_files/{now().strftime('%Y/%m')}/{file.name}"
+            data["value"] = default_storage.save(filename, file)
+
+        elif json_val is not None:
+            data["value"] = json.dumps(json_val)
+
+        elif "value" not in data:
+            raise serializers.ValidationError("Either 'value', 'file', or 'json_value' must be provided.")
+
         return data
 
 
@@ -77,38 +92,43 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['process', 'fields']
 
+    def validate_process(self, process):
+        if not process.is_active:
+            raise serializers.ValidationError("This process is inactive.")
+        return process
+
     def create(self, validated_data):
         user = self.context['request'].user
         process = validated_data['process']
-        field_data = validated_data.pop('fields')
+        field_data_list = validated_data.pop('fields')
 
-        # Get the start state for this process
         start_state = State.objects.filter(
             state_type='start',
             transitions_from__process=process
         ).distinct().first()
 
         if not start_state:
-            raise serializers.ValidationError("Start state not defined for this process.")
+            raise serializers.ValidationError("No start state is defined for this process.")
 
-        task = Task.objects.create(
-            process=process,
-            created_by=user,
-            state=start_state
-        )
-
-        for field in field_data:
-            field_id = field['field_id']
-            try:
-                field_obj = ProcessField.objects.get(id=field_id, process=process)
-            except ProcessField.DoesNotExist:
-                raise serializers.ValidationError(f"Field ID {field_id} not found for this process.")
-
-            TaskData.objects.create(
-                task=task,
-                field=field_obj,
-                value=field['value']
+        with transaction.atomic():
+            task = Task.objects.create(
+                process=process,
+                created_by=user,
+                state=start_state
             )
+
+            for field_data in field_data_list:
+                field_id = field_data.get('field_id')
+                try:
+                    field_obj = ProcessField.objects.get(id=field_id, process=process)
+                except ProcessField.DoesNotExist:
+                    raise serializers.ValidationError(f"Field ID {field_id} is invalid for this process.")
+
+                TaskData.objects.create(
+                    task=task,
+                    field=field_obj,
+                    value=field_data.get('value')
+                )
 
         return task
     
@@ -127,8 +147,9 @@ class TaskActionSerializer(serializers.Serializer):
         except Action.DoesNotExist:
             raise serializers.ValidationError("Invalid action for this process.")
 
-        if not task.process.processuseraction_set.filter(user=user, action=action).exists():
-            raise serializers.ValidationError("User not permitted to perform this action.")
+        # Check permission via PermissionService
+        if not PermissionService.user_can_perform_action(user, task, action):
+            raise serializers.ValidationError("You do not have permission to perform this action.")
 
         try:
             transition = Transition.objects.get(
@@ -137,7 +158,7 @@ class TaskActionSerializer(serializers.Serializer):
                 actiontransition__action=action
             )
         except Transition.DoesNotExist:
-            raise serializers.ValidationError("Invalid transition for this action from current state.")
+            raise serializers.ValidationError("No valid transition from current state for this action.")
 
         attrs['action'] = action
         attrs['transition'] = transition
@@ -150,9 +171,11 @@ class TaskActionSerializer(serializers.Serializer):
         transition = self.validated_data['transition']
         comment = self.validated_data.get('comment', '')
 
+        # Perform state transition
         task.state = transition.next_state
         task.save()
 
+        # Log action
         TaskActionLog.objects.create(
             task=task,
             user=user,
@@ -167,14 +190,20 @@ class TaskProcessSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
 
+
 class TaskStateSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
-    state_type = serializers.CharField(source='state_type.name', default=None)
+    type = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return obj.get_state_type_display()  # Assumes 'state_type' has choices set
+
 
 class TaskUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     username = serializers.CharField()
+
 
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
@@ -186,8 +215,10 @@ class TaskDataSerializer(serializers.ModelSerializer):
     def get_field(self, obj):
         return {
             'id': obj.field.id,
-            'name': obj.field.name
+            'name': obj.field.name,
+            'type': obj.field.field_type  # Include this for clarity
         }
+
 
 class TaskActionLogSerializer(serializers.ModelSerializer):
     user = TaskUserSerializer()
@@ -205,9 +236,10 @@ class TaskActionLogSerializer(serializers.ModelSerializer):
             'type': obj.action.get_action_type_display()
         }
 
+
 class TaskDetailSerializer(serializers.ModelSerializer):
     process = TaskProcessSerializer()
-    state = serializers.SerializerMethodField()
+    state = TaskStateSerializer()
     created_by = TaskUserSerializer()
     data = TaskDataSerializer(many=True)
     action_logs = TaskActionLogSerializer(many=True)
@@ -220,30 +252,26 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'data', 'action_logs', 'available_actions'
         ]
 
-    def get_state(self, obj):
-        return {
-            'id': obj.state.id,
-            'name': obj.state.name,
-            'type': obj.state.get_state_type_display()
-        }
-
     def get_available_actions(self, obj):
         user = self.context['request'].user
+
         transitions = Transition.objects.filter(
             process=obj.process,
             current_state=obj.state
         )
+
         actions = Action.objects.filter(
-            actiontransition__transition__in=transitions,
-            user_permissions__user=user,
-            user_permissions__process=obj.process
+            actiontransition__transition__in=transitions
         ).distinct()
 
-        return [
-            {
-                'id': action.id,
-                'name': action.name,
-                'description': action.description,
-                'type': action.get_action_type_display()
-            } for action in actions
-        ]
+        permitted = []
+        for action in actions:
+            if PermissionService.user_can_perform_action(user, obj, action):
+                permitted.append({
+                    'id': action.id,
+                    'name': action.name,
+                    'description': action.description,
+                    'type': action.get_action_type_display()
+                })
+
+        return permitted

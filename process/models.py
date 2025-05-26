@@ -76,6 +76,7 @@ class RoleType(models.TextChoices):
     SPECIFIC_USER = 'specific_user', 'Specific User'
     SPECIFIC_ROLE = 'specific_role', 'Specific Role'
     SPECIFIC_DEPARTMENT = 'specific_department', 'Specific Department'
+    SPECIFIC_ROLE_AND_DEPARTMENT = 'specific_role_and_department', 'Specific Role and Department'
 
 
 class ProcessActionRole(models.Model):
@@ -108,6 +109,9 @@ class ProcessActionRole(models.Model):
             raise ValidationError("Specific role required for SPECIFIC_ROLE role type")
         if self.role_type == RoleType.SPECIFIC_DEPARTMENT and not self.specific_department:
             raise ValidationError("Specific department required for SPECIFIC_DEPARTMENT role type")
+        if self.role_type == RoleType.SPECIFIC_ROLE_AND_DEPARTMENT:
+            if not (self.specific_role and self.specific_department):
+                raise ValidationError("Both role and department are required for SPECIFIC_ROLE_AND_DEPARTMENT role type.")
             
     def __str__(self):
         return f"{self.process} - {self.action} - {self.get_role_type_display()}"
