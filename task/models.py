@@ -45,6 +45,12 @@ class TaskData(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['task','field'], name='unique_task_field')
+        ]
+    
     def __str__(self):
         return f"{self.task} - {self.field}"
     

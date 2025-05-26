@@ -29,8 +29,8 @@ class Process(models.Model):
 
 
 class ProcessUser(models.Model): #Allowed_users
-    process = models.ForeignKey(Process, null=True, on_delete=models.CASCADE, related_name='allowed_users')
-    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='allowed_users')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -76,6 +76,7 @@ class RoleType(models.TextChoices):
     SPECIFIC_USER = 'specific_user', 'Specific User'
     SPECIFIC_ROLE = 'specific_role', 'Specific Role'
     SPECIFIC_DEPARTMENT = 'specific_department', 'Specific Department'
+
 
 class ProcessActionRole(models.Model):
     """Defines WHO can perform actions based on roles/relationships"""

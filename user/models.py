@@ -26,17 +26,9 @@ class UserManager(BaseUserManager):
     
     
 class User(AbstractUser):
-    department = models.ForeignKey(Department, 
-                                   on_delete=models.PROTECT, 
-                                   null=True, 
-                                   blank=True,
-                                   related_name='users')
-    role = models.ForeignKey(Role, 
-                             on_delete=models.PROTECT, 
-                             null=True, 
-                             blank=True,
-                             related_name='users')
-    manager = models.ForeignKey(
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='users')
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users')
+    supervisor = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
         null=True,
