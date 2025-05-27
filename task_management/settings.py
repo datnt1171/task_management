@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'silk',
     'drf_spectacular',
     'django_filters',
+    'djoser',
     
     'process',
     'task',
