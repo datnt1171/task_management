@@ -183,15 +183,18 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3000',
-    # 'http://64.226.81.32',
-    # 'http://64.226.81.32:1337',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3000',
-    # 'http://64.226.81.32',
-    # 'http://64.226.81.32:1337',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+DJOSER = {
+    'USER_ID_FIELD': 'id',
+    'SET_PASSWORD_RETYPE': True,
+    'PASSWORD_RESET_CONFIRM_RETYPE': True,
+    'LOGOUT_ON_PASSWORD_CHANGE': False,
+}
