@@ -71,7 +71,7 @@ class TaskDetailView(generics.RetrieveAPIView):
             'process', 'state', 'created_by'
         ).prefetch_related(
             Prefetch('action_logs', queryset=TaskActionLog.objects.select_related('user', 'action')),
-            Prefetch('data', queryset=TaskData.objects.select_related('field'))
+            Prefetch('data', queryset=TaskData.objects.select_related('field').order_by('field__order'))
         )
         
         

@@ -3,6 +3,7 @@ from user.models import User
 from process.models import Process, Action, ProcessField
 from workflow_engine.models import State
 from django.utils.timezone import now
+from django.core.validators import FileExtensionValidator
 
 def generate_task_title(process: Process) -> str:
     prefix = process.prefix or "XX"
@@ -60,12 +61,21 @@ class TaskActionLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
     comment = models.TextField(null=True, blank=True)
+
+    file = models.FileField(
+        upload_to='task_logs/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=[
+            'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx'
+        ])]
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    
+
     class Meta:
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"{self.task} - {self.user} - {self.action}"

@@ -194,10 +194,7 @@ class TaskProcessSerializer(serializers.Serializer):
 class TaskStateSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
-    type = serializers.SerializerMethodField()
-
-    def get_type(self, obj):
-        return obj.get_state_type_display()  # Assumes 'state_type' has choices set
+    type = serializers.CharField(source='state_type')
 
 
 class TaskUserSerializer(serializers.Serializer):
@@ -223,17 +220,18 @@ class TaskDataSerializer(serializers.ModelSerializer):
 class TaskActionLogSerializer(serializers.ModelSerializer):
     user = TaskUserSerializer()
     action = serializers.SerializerMethodField()
+    file = serializers.FileField(required=False)
 
     class Meta:
         model = TaskActionLog
-        fields = ['id', 'user', 'action', 'created_at', 'comment']
+        fields = ['id', 'user', 'action', 'created_at', 'comment', 'file']
 
     def get_action(self, obj):
         return {
             'id': obj.action.id,
             'name': obj.action.name,
             'description': obj.action.description,
-            'type': obj.action.get_action_type_display()
+            'type': obj.action.action_type
         }
 
 
@@ -271,7 +269,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
                     'id': action.id,
                     'name': action.name,
                     'description': action.description,
-                    'type': action.get_action_type_display()
+                    'type': action.action_type
                 })
 
         return permitted

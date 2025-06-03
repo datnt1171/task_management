@@ -45,7 +45,6 @@ class ProcessUser(models.Model): #Allowed_users
 
 
 class ActionType(models.TextChoices):
-    INITIAL = 'initial', 'Initial'
     APPROVE = 'approve', 'Approve'
     ADJUST = 'adjust', 'Adjust'
     CONFIRM = 'confirm', 'Confirm'
