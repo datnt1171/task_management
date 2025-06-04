@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from user.models import User
 from process.models import Process, Action, ProcessField
@@ -20,6 +21,7 @@ def generate_task_title(process: Process) -> str:
 
 
 class Task(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, unique=True, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,6 +42,7 @@ class Task(models.Model):
 
 
 class TaskData(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='data')
     field = models.ForeignKey(ProcessField, on_delete=models.CASCADE)
     value = models.TextField(blank=True, null=True)
@@ -57,6 +60,7 @@ class TaskData(models.Model):
     
 
 class TaskActionLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="action_logs")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)

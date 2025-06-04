@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.core.exceptions import ValidationError
 from process.models import Process, Action
@@ -15,6 +16,7 @@ class StateType(models.TextChoices):
 
 
 class State(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     state_type = models.CharField(max_length=255, choices=StateType.choices, default=StateType.START)
@@ -26,6 +28,7 @@ class State(models.Model):
     
 
 class Transition(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     current_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='transitions_from')
     next_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='transitions_to')
@@ -47,6 +50,7 @@ class Transition(models.Model):
 
 
 class ActionTransition(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
     transition = models.ForeignKey(Transition, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)

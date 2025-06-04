@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.core.exceptions import ValidationError
 from user.models import User, Role, Department
@@ -9,6 +10,7 @@ class ProcessManager(models.Manager):
 
 
 class Process(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     version = models.CharField(max_length=255)
@@ -29,6 +31,7 @@ class Process(models.Model):
 
 
 class ProcessUser(models.Model): #Allowed_users
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='allowed_users')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -55,6 +58,7 @@ class ActionType(models.TextChoices):
     
     
 class Action(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField()
     action_type = models.CharField(max_length=255, choices=ActionType.choices)
@@ -80,6 +84,7 @@ class RoleType(models.TextChoices):
 
 class ProcessActionRole(models.Model):
     """Defines WHO can perform actions based on roles/relationships"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
     role_type = models.CharField(max_length=50, choices=RoleType.choices)
@@ -127,6 +132,7 @@ class FieldType(models.TextChoices):
 
 
 class ProcessField(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(max_length=255)
     field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)

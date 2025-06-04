@@ -1,4 +1,5 @@
 import json
+import os
 from django.core.files.storage import default_storage
 from django.db import transaction
 from rest_framework import serializers
@@ -73,7 +74,8 @@ class TaskDataInputSerializer(serializers.Serializer):
         json_val = data.get("json_value")
 
         if file:
-            filename = f"uploads/task_data_files/{now().strftime('%Y/%m')}/{file.name}"
+            upload_dir = now().strftime('uploads/task_data_files/%Y/%m')
+            filename = default_storage.save(os.path.join(upload_dir, file.name), file)
             data["value"] = default_storage.save(filename, file)
 
         elif json_val is not None:
@@ -136,6 +138,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 class TaskActionSerializer(serializers.Serializer):
     action_id = serializers.IntegerField()
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    file = serializers.FileField(required=False, allow_null=True)
 
     def validate(self, attrs):
         user = self.context['request'].user
@@ -170,6 +173,7 @@ class TaskActionSerializer(serializers.Serializer):
         action = self.validated_data['action']
         transition = self.validated_data['transition']
         comment = self.validated_data.get('comment', '')
+        file = self.validated_data.get('file')
 
         # Perform state transition
         task.state = transition.next_state
@@ -180,7 +184,8 @@ class TaskActionSerializer(serializers.Serializer):
             task=task,
             user=user,
             action=action,
-            comment=comment
+            comment=comment,
+            file=file
         )
 
         return task
