@@ -4,7 +4,7 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from rest_framework import serializers
 from django.utils.timezone import now
-from .models import Task, TaskData, TaskActionLog
+from .models import Task, TaskData, TaskActionLog, generate_task_title
 from process.models import ProcessField, Action
 from workflow_engine.models import State, Transition
 from .permission_service import PermissionService
@@ -64,7 +64,7 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
      
         
 class TaskDataInputSerializer(serializers.Serializer):
-    field_id = serializers.IntegerField()
+    field_id = serializers.UUIDField()
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     file = serializers.FileField(required=False)
     json_value = serializers.JSONField(required=False)
@@ -103,6 +103,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         process = validated_data['process']
         field_data_list = validated_data.pop('fields')
+        
 
         start_state = State.objects.filter(
             state_type='start',
@@ -116,7 +117,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             task = Task.objects.create(
                 process=process,
                 created_by=user,
-                state=start_state
+                state=start_state,
+                title=generate_task_title(process)
             )
 
             for field_data in field_data_list:
@@ -136,7 +138,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     
 
 class TaskActionSerializer(serializers.Serializer):
-    action_id = serializers.IntegerField()
+    action_id = serializers.UUIDField()
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     file = serializers.FileField(required=False, allow_null=True)
 
@@ -192,18 +194,18 @@ class TaskActionSerializer(serializers.Serializer):
     
     
 class TaskProcessSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     name = serializers.CharField()
 
 
 class TaskStateSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     name = serializers.CharField()
     type = serializers.CharField(source='state_type')
 
 
 class TaskUserSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     username = serializers.CharField()
 
 

@@ -78,7 +78,7 @@ class PermissionService:
         """Return department manager (role = 'manager')"""
         if not department:
             return None
-        return User.objects.filter(department=department, role__name='manager').first()
+        return User.objects.filter(department=department, role__name_en='manager').first()
 
     @staticmethod
     def _get_task_assignees(task: Task) -> List[User]:
@@ -88,7 +88,7 @@ class PermissionService:
 
         for field in assignee_fields:
             try:
-                user = User.objects.get(id=int(field.value))
+                user = User.objects.get(id=field.value)
                 assignees.append(user)
             except (User.DoesNotExist, ValueError):
                 continue

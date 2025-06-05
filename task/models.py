@@ -32,11 +32,6 @@ class Task(models.Model):
     class Meta:
         ordering = ['-created_at']
     
-    def save(self, *args, **kwargs):
-        if not self.pk:  # Only generate on creation
-            self.title = generate_task_title(self.process)
-        super().save(*args, **kwargs) 
-    
     def __str__(self):
         return f"{self.title} ({self.process.name})"
 
