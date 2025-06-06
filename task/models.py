@@ -54,6 +54,20 @@ class TaskData(models.Model):
         return f"{self.task} - {self.field}"
     
 
+class TaskFileData(models.Model):
+    task_data = models.ForeignKey(TaskData, on_delete=models.CASCADE, related_name='files')
+    uploaded_file = models.FileField(
+        upload_to='uploads/task_data_files/',
+        validators=[FileExtensionValidator(allowed_extensions=[
+            'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx'
+        ])]
+    )
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.IntegerField(blank=True, null=True)
+    mime_type = models.CharField(max_length=100, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
 class TaskActionLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="action_logs")

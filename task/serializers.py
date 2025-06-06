@@ -1,10 +1,6 @@
-import json
-import os
-from django.core.files.storage import default_storage
 from django.db import transaction
 from rest_framework import serializers
-from django.utils.timezone import now
-from .models import Task, TaskData, TaskActionLog, generate_task_title
+from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
 from process.models import ProcessField, Action
 from workflow_engine.models import State, Transition
 from .permission_service import PermissionService
@@ -67,24 +63,6 @@ class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     file = serializers.FileField(required=False)
-    json_value = serializers.JSONField(required=False)
-
-    def validate(self, data):
-        file = data.get("file")
-        json_val = data.get("json_value")
-
-        if file:
-            upload_dir = now().strftime('uploads/task_data_files/%Y/%m')
-            filename = default_storage.save(os.path.join(upload_dir, file.name), file)
-            data["value"] = default_storage.save(filename, file)
-
-        elif json_val is not None:
-            data["value"] = json.dumps(json_val)
-
-        elif "value" not in data:
-            raise serializers.ValidationError("Either 'value', 'file', or 'json_value' must be provided.")
-
-        return data
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
@@ -93,6 +71,44 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['process', 'fields']
+
+    def to_internal_value(self, data):
+    # Handle FormData structure from frontend
+        if hasattr(data, 'getlist'):  # FormData from frontend
+            fields_data = []
+            field_indices = set()
+            
+            # Extract all field indices
+            for key in data.keys():
+                if key.startswith('fields[') and '][' in key:
+                    index = key.split('[')[1].split(']')[0]
+                    field_indices.add(int(index))
+            
+            # Build fields array
+            for index in sorted(field_indices):
+                field_data = {}
+                field_id_key = f'fields[{index}][field_id]'
+                value_key = f'fields[{index}][value]'
+                file_key = f'fields[{index}][file]'
+                
+                if field_id_key in data:
+                    field_data['field_id'] = data[field_id_key]
+                if value_key in data:
+                    field_data['value'] = data[value_key]
+                if file_key in data:
+                    field_data['file'] = data[file_key]
+                    
+                fields_data.append(field_data)
+            
+            # Reconstruct data
+            processed_data = {
+                'process': data.get('process'),
+                'fields': fields_data
+            }
+            return super().to_internal_value(processed_data)
+        
+        return super().to_internal_value(data)
+
 
     def validate_process(self, process):
         if not process.is_active:
@@ -103,7 +119,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         process = validated_data['process']
         field_data_list = validated_data.pop('fields')
-        
 
         start_state = State.objects.filter(
             state_type='start',
@@ -128,11 +143,22 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 except ProcessField.DoesNotExist:
                     raise serializers.ValidationError(f"Field ID {field_id} is invalid for this process.")
 
-                TaskData.objects.create(
+                task_data = TaskData.objects.create(
                     task=task,
                     field=field_obj,
                     value=field_data.get('value')
                 )
+
+                # If file is included, create TaskFileData
+                uploaded_file = field_data.get('file')
+                if uploaded_file:
+                    TaskFileData.objects.create(
+                        task_data=task_data,
+                        uploaded_file=uploaded_file,
+                        original_filename=uploaded_file.name,
+                        file_size=uploaded_file.size,
+                        mime_type=uploaded_file.content_type or ''
+                    )
 
         return task
     
