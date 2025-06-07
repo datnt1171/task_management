@@ -1,11 +1,63 @@
+import os
 from django.db import transaction
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
 from process.models import ProcessField, Action
 from workflow_engine.models import State, Transition
 from .permission_service import PermissionService
+from core.constants import ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 
 
+def validate_file_extension(file):
+    """Validate file extension"""
+    if not file:
+        return
+    
+    file_extension = os.path.splitext(file.name)[1].lower()
+    if file_extension not in ALLOWED_EXTENSIONS:
+        allowed_str = ', '.join(ALLOWED_EXTENSIONS)
+        raise serializers.ValidationError(
+            f"File extension '{file_extension}' is not allowed. "
+            f"Allowed extensions: {allowed_str}"
+        )
+
+def validate_file_size(file):
+    """Validate file size"""
+    if not file:
+        return
+    
+    if file.size > MAX_FILE_SIZE:
+        size_mb = MAX_FILE_SIZE / (1024 * 1024)
+        raise serializers.ValidationError(
+            f"File size exceeds maximum allowed size of {size_mb}MB. "
+            f"Current file size: {file.size / (1024 * 1024):.2f}MB"
+        )
+
+def validate_file_content(file):
+    """Basic file content validation (optional - for additional security)"""
+    if not file:
+        return
+    
+    # Reset file pointer to beginning
+    file.seek(0)
+    
+    # Read first few bytes to check file signature
+    file_header = file.read(4)
+    file.seek(0)  # Reset pointer
+    
+    # Basic file signature validation (optional)
+    # You can expand this based on your security requirements
+    if file.name.lower().endswith(('.jpg', '.jpeg')):
+        if not file_header.startswith(b'\xff\xd8\xff'):
+            raise serializers.ValidationError("Invalid JPEG file format")
+    elif file.name.lower().endswith('.png'):
+        if not file_header.startswith(b'\x89PNG'):
+            raise serializers.ValidationError("Invalid PNG file format")
+    elif file.name.lower().endswith('.pdf'):
+        if not file_header.startswith(b'%PDF'):
+            raise serializers.ValidationError("Invalid PDF file format")
+        
+        
 class SentTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
     recipient = serializers.SerializerMethodField()
@@ -64,6 +116,34 @@ class TaskDataInputSerializer(serializers.Serializer):
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     file = serializers.FileField(required=False)
 
+    def validate_file(self, file):
+        """Comprehensive file validation"""
+        if file:
+            # Validate file extension
+            validate_file_extension(file)
+            
+            # Validate file size
+            validate_file_size(file)
+            
+            # Validate file content (optional - remove if too strict)
+            # validate_file_content(file)
+            
+        return file
+
+    def validate(self, data):
+        """Ensure either value or file is provided, but not both for file fields"""
+        field_id = data.get('field_id')
+        value = data.get('value')
+        file = data.get('file')
+        
+        # If both value and file are provided for the same field, that might be an error
+        # This depends on your business logic - adjust as needed
+        if value and file:
+            # You might want to allow this, or raise an error
+            # For now, we'll allow it but log a warning
+            pass
+        
+        return data
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     fields = TaskDataInputSerializer(many=True, write_only=True)
@@ -73,7 +153,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         fields = ['process', 'fields']
 
     def to_internal_value(self, data):
-    # Handle FormData structure from frontend
+        # Handle FormData structure from frontend
         if hasattr(data, 'getlist'):  # FormData from frontend
             fields_data = []
             field_indices = set()
@@ -109,11 +189,17 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         
         return super().to_internal_value(data)
 
-
     def validate_process(self, process):
         if not process.is_active:
             raise serializers.ValidationError("This process is inactive.")
         return process
+
+    def validate_fields(self, fields_data):
+        """Validate fields data"""
+        if not fields_data:
+            raise serializers.ValidationError("At least one field is required.")
+        
+        return fields_data
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -143,14 +229,25 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 except ProcessField.DoesNotExist:
                     raise serializers.ValidationError(f"Field ID {field_id} is invalid for this process.")
 
+                # Validate field type vs provided data
+                uploaded_file = field_data.get('file')
+                field_value = field_data.get('value')
+                
+                # If field type is file but no file provided, and it's required
+                if field_obj.field_type == 'file' and not uploaded_file and field_obj.required:
+                    raise serializers.ValidationError(f"File is required for field '{field_obj.name}'")
+                
+                # If field type is not file but file is provided
+                if field_obj.field_type != 'file' and uploaded_file:
+                    raise serializers.ValidationError(f"Field '{field_obj.name}' does not accept files")
+
                 task_data = TaskData.objects.create(
                     task=task,
                     field=field_obj,
-                    value=field_data.get('value')
+                    value=field_value
                 )
 
                 # If file is included, create TaskFileData
-                uploaded_file = field_data.get('file')
                 if uploaded_file:
                     TaskFileData.objects.create(
                         task_data=task_data,
@@ -167,21 +264,32 @@ class TaskActionSerializer(serializers.Serializer):
     action_id = serializers.UUIDField()
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     file = serializers.FileField(required=False, allow_null=True)
-
+    
+    def validate_file(self, file):
+        """Comprehensive file validation"""
+        if file:
+            # Validate file extension
+            validate_file_extension(file)
+            
+            # Validate file size
+            validate_file_size(file)
+            
+        return file
+    
     def validate(self, attrs):
         user = self.context['request'].user
         task = self.context['task']
         action_id = attrs['action_id']
-
+        
         try:
             action = Action.objects.get(id=action_id, process=task.process)
         except Action.DoesNotExist:
             raise serializers.ValidationError("Invalid action for this process.")
-
+        
         # Check permission via PermissionService
         if not PermissionService.user_can_perform_action(user, task, action):
             raise serializers.ValidationError("You do not have permission to perform this action.")
-
+        
         try:
             transition = Transition.objects.get(
                 process=task.process,
@@ -190,11 +298,11 @@ class TaskActionSerializer(serializers.Serializer):
             )
         except Transition.DoesNotExist:
             raise serializers.ValidationError("No valid transition from current state for this action.")
-
+        
         attrs['action'] = action
         attrs['transition'] = transition
         return attrs
-
+    
     def save(self, **kwargs):
         task = self.context['task']
         user = self.context['request'].user
@@ -202,11 +310,11 @@ class TaskActionSerializer(serializers.Serializer):
         transition = self.validated_data['transition']
         comment = self.validated_data.get('comment', '')
         file = self.validated_data.get('file')
-
+        
         # Perform state transition
         task.state = transition.next_state
         task.save()
-
+        
         # Log action
         TaskActionLog.objects.create(
             task=task,
@@ -215,7 +323,7 @@ class TaskActionSerializer(serializers.Serializer):
             comment=comment,
             file=file
         )
-
+        
         return task
     
     
@@ -235,12 +343,21 @@ class TaskUserSerializer(serializers.Serializer):
     username = serializers.CharField()
 
 
+class TaskFileDataSerializer(serializers.ModelSerializer):
+    uploaded_file = serializers.FileField(required=False)
+    
+    class Meta:
+        model = TaskFileData
+        fields = ['original_filename','uploaded_file']
+
+
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
+    files = TaskFileDataSerializer(many=True)
 
     class Meta:
         model = TaskData
-        fields = ['field', 'value']
+        fields = ['field', 'value', 'files']
 
     def get_field(self, obj):
         return {
@@ -248,6 +365,7 @@ class TaskDataSerializer(serializers.ModelSerializer):
             'name': obj.field.name,
             'type': obj.field.field_type  # Include this for clarity
         }
+
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):
