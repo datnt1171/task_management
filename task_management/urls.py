@@ -11,7 +11,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('silk/', include('silk.urls', namespace='silk')),
+    # path('silk/', include('silk.urls', namespace='silk')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/', include('djoser.urls')),
@@ -26,5 +26,5 @@ urlpatterns = [
     path('api/users/', include('user.urls')),
     # path('workflow_engine/', include('workflow_engine.urls')),
     path('api/tasks/', include('task.urls')),
-    path('api/edms/', include('edms.urls'))
+    # path('api/edms/', include('edms.urls'))
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

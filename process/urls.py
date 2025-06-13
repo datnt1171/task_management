@@ -1,10 +1,7 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import ProcessViewSet
-
-router = DefaultRouter()
-router.register(r'', ProcessViewSet, basename='process')
+from django.urls import path
+from .views import ListProcessAPIView, ProcessDetailAPIView
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('', ListProcessAPIView.as_view(), name='process-list'),
+    path('<uuid:pk>/', ProcessDetailAPIView.as_view(), name='process-detail'),
 ]

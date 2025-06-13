@@ -1,21 +1,20 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from .models import User
-from .serializers import UserProfileSerializer, UserListSerializer
+from .serializers import UserDetailSerializer, UserListSerializer
 from django.db.models import Q
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 
-class UserProfileView(APIView):
+class UserProfileView(RetrieveAPIView):
+    serializer_class = UserDetailSerializer
 
-    def get(self, request):
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data)
+    def get_object(self):
+        return self.request.user
 
 
-class UserListView(APIView):
+class UserListView(ListAPIView):
+    serializer_class = UserListSerializer
 
-    def get(self, request):
-        users = User.objects.active().exclude(
+    def get_queryset(self):
+        return User.objects.active().exclude(
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
         )
-        serializer = UserListSerializer(users, many=True)
-        return Response(serializer.data)
+

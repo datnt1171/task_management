@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    'silk',
+    # 'silk',
     'drf_spectacular',
     'django_filters',
     'djoser',
@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'task',
     'user',
     'workflow_engine',
-    'edms',
+    # 'edms',
     
 ]
 
@@ -60,7 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'silk.middleware.SilkyMiddleware',
+    # 'silk.middleware.SilkyMiddleware',
 ]
 
 ROOT_URLCONF = 'task_management.urls'

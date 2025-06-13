@@ -3,10 +3,13 @@ from django.db import transaction
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
 from process.models import ProcessField, Action
+from process.serializers import ProcessFieldSerializer, ProcessListSerializer, ActionSerializer
 from workflow_engine.models import State, Transition
+from workflow_engine.serializers import StateSerializer
 from .permission_service import PermissionService
+from user.serializers import UserListSerializer
 from core.constants import ALLOWED_EXTENSIONS, MAX_FILE_SIZE
-
+from drf_spectacular.utils import extend_schema_field
 
 def validate_file_extension(file):
     """Validate file extension"""
@@ -68,7 +71,7 @@ class SentTaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'recipient']
 
-    def get_recipient(self, obj):
+    def get_recipient(self, obj) -> str | None:
         """
         Try to identify a user who is allowed to act on the task from the start state.
         """
@@ -95,7 +98,7 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action']
 
-    def get_action(self, obj):
+    def get_action(self, obj) -> str | None:
         """
         Return the name of the first action the current user is allowed to perform on this task.
         """
@@ -325,22 +328,6 @@ class TaskActionSerializer(serializers.Serializer):
         )
         
         return task
-    
-    
-class TaskProcessSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    name = serializers.CharField()
-
-
-class TaskStateSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    name = serializers.CharField()
-    type = serializers.CharField(source='state_type')
-
-
-class TaskUserSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    username = serializers.CharField()
 
 
 class TaskFileDataSerializer(serializers.ModelSerializer):
@@ -348,7 +335,7 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TaskFileData
-        fields = ['original_filename','uploaded_file']
+        fields = ['original_filename', 'uploaded_file']
 
 
 class TaskDataSerializer(serializers.ModelSerializer):
@@ -359,37 +346,25 @@ class TaskDataSerializer(serializers.ModelSerializer):
         model = TaskData
         fields = ['field', 'value', 'files']
 
-    def get_field(self, obj):
-        return {
-            'id': obj.field.id,
-            'name': obj.field.name,
-            'type': obj.field.field_type  # Include this for clarity
-        }
+    def get_field(self, obj) -> dict:
+        return ProcessFieldSerializer(obj.field).data
 
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):
-    user = TaskUserSerializer()
-    action = serializers.SerializerMethodField()
+    user = UserListSerializer()
+    action = ActionSerializer()
     file = serializers.FileField(required=False)
 
     class Meta:
         model = TaskActionLog
         fields = ['id', 'user', 'action', 'created_at', 'comment', 'file']
 
-    def get_action(self, obj):
-        return {
-            'id': obj.action.id,
-            'name': obj.action.name,
-            'description': obj.action.description,
-            'type': obj.action.action_type
-        }
-
 
 class TaskDetailSerializer(serializers.ModelSerializer):
-    process = TaskProcessSerializer()
-    state = TaskStateSerializer()
-    created_by = TaskUserSerializer()
+    process = ProcessListSerializer()
+    state = StateSerializer()
+    created_by = UserListSerializer()
     data = TaskDataSerializer(many=True)
     action_logs = TaskActionLogSerializer(many=True)
     available_actions = serializers.SerializerMethodField()
@@ -401,6 +376,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'data', 'action_logs', 'available_actions'
         ]
 
+    @extend_schema_field(ActionSerializer)
     def get_available_actions(self, obj):
         user = self.context['request'].user
 
@@ -424,3 +400,18 @@ class TaskDetailSerializer(serializers.ModelSerializer):
                 })
 
         return permitted
+
+
+class SPRReportRowSerializer(serializers.Serializer):
+    task_id = serializers.UUIDField()
+    title = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    created_by = serializers.CharField()
+    user_id = serializers.UUIDField()
+    state_type = serializers.CharField()
+    customer_name = serializers.CharField()
+    finishing_code = serializers.CharField()
+    customer_color_name = serializers.CharField()
+    collection = serializers.CharField()
+    quantity = serializers.CharField()
+    deadline = serializers.CharField()
