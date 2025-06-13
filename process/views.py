@@ -2,7 +2,7 @@ from .serializers import ProcessDetailSerializer, ProcessListSerializer
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from .models import Process
 
-class ListProcessAPIView(ListAPIView):
+class ProcessListAPIView(ListAPIView):
     serializer_class = ProcessListSerializer
     
     def get_queryset(self):
