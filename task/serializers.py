@@ -396,7 +396,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
                     'id': action.id,
                     'name': action.name,
                     'description': action.description,
-                    'type': action.action_type
+                    'action_type': action.action_type
                 })
 
         return permitted
