@@ -346,7 +346,8 @@ class TaskDataSerializer(serializers.ModelSerializer):
         model = TaskData
         fields = ['field', 'value', 'files']
 
-    def get_field(self, obj) -> dict:
+    @extend_schema_field(ProcessFieldSerializer)
+    def get_field(self, obj):
         return ProcessFieldSerializer(obj.field).data
 
 
