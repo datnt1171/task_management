@@ -18,3 +18,10 @@ class UserListView(ListAPIView):
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
         )
 
+
+class UserRetrieveView(RetrieveAPIView):
+    queryset = User.objects.active().exclude(
+        Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
+    )
+    serializer_class = UserListSerializer
+
