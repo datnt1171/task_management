@@ -1,4 +1,3 @@
-import os
 from django.db import transaction
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
@@ -8,58 +7,8 @@ from workflow_engine.models import State, Transition
 from workflow_engine.serializers import StateSerializer
 from .permission_service import PermissionService
 from user.serializers import UserListSerializer
-from core.constants import ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 from drf_spectacular.utils import extend_schema_field
-
-def validate_file_extension(file):
-    """Validate file extension"""
-    if not file:
-        return
-    
-    file_extension = os.path.splitext(file.name)[1].lower()
-    if file_extension not in ALLOWED_EXTENSIONS:
-        allowed_str = ', '.join(ALLOWED_EXTENSIONS)
-        raise serializers.ValidationError(
-            f"File extension '{file_extension}' is not allowed. "
-            f"Allowed extensions: {allowed_str}"
-        )
-
-def validate_file_size(file):
-    """Validate file size"""
-    if not file:
-        return
-    
-    if file.size > MAX_FILE_SIZE:
-        size_mb = MAX_FILE_SIZE / (1024 * 1024)
-        raise serializers.ValidationError(
-            f"File size exceeds maximum allowed size of {size_mb}MB. "
-            f"Current file size: {file.size / (1024 * 1024):.2f}MB"
-        )
-
-def validate_file_content(file):
-    """Basic file content validation (optional - for additional security)"""
-    if not file:
-        return
-    
-    # Reset file pointer to beginning
-    file.seek(0)
-    
-    # Read first few bytes to check file signature
-    file_header = file.read(4)
-    file.seek(0)  # Reset pointer
-    
-    # Basic file signature validation (optional)
-    # You can expand this based on your security requirements
-    if file.name.lower().endswith(('.jpg', '.jpeg')):
-        if not file_header.startswith(b'\xff\xd8\xff'):
-            raise serializers.ValidationError("Invalid JPEG file format")
-    elif file.name.lower().endswith('.png'):
-        if not file_header.startswith(b'\x89PNG'):
-            raise serializers.ValidationError("Invalid PNG file format")
-    elif file.name.lower().endswith('.pdf'):
-        if not file_header.startswith(b'%PDF'):
-            raise serializers.ValidationError("Invalid PDF file format")
-        
+from core.utils import FileValidator
         
 class SentTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
@@ -117,21 +66,7 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False)
-
-    def validate_file(self, file):
-        """Comprehensive file validation"""
-        if file:
-            # Validate file extension
-            validate_file_extension(file)
-            
-            # Validate file size
-            validate_file_size(file)
-            
-            # Validate file content (optional - remove if too strict)
-            # validate_file_content(file)
-            
-        return file
+    file = serializers.FileField(required=False, validators=[FileValidator()])
 
     def validate(self, data):
         """Ensure either value or file is provided, but not both for file fields"""
@@ -139,11 +74,8 @@ class TaskDataInputSerializer(serializers.Serializer):
         value = data.get('value')
         file = data.get('file')
         
-        # If both value and file are provided for the same field, that might be an error
-        # This depends on your business logic - adjust as needed
         if value and file:
-            # You might want to allow this, or raise an error
-            # For now, we'll allow it but log a warning
+            # Handle your business logic here
             pass
         
         return data
@@ -263,21 +195,28 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return task
     
 
+class TaskDataInputSerializer(serializers.Serializer):
+    field_id = serializers.UUIDField()
+    value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    file = serializers.FileField(required=False, validators=[FileValidator()])
+
+    def validate(self, data):
+        """Ensure either value or file is provided, but not both for file fields"""
+        field_id = data.get('field_id')
+        value = data.get('value')
+        file = data.get('file')
+        
+        if value and file:
+            # Handle your business logic here
+            pass
+        
+        return data
+
+
 class TaskActionSerializer(serializers.Serializer):
     action_id = serializers.UUIDField()
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    file = serializers.FileField(required=False, allow_null=True)
-    
-    def validate_file(self, file):
-        """Comprehensive file validation"""
-        if file:
-            # Validate file extension
-            validate_file_extension(file)
-            
-            # Validate file size
-            validate_file_size(file)
-            
-        return file
+    file = serializers.FileField(required=False, allow_null=True, validators=[FileValidator()])
     
     def validate(self, attrs):
         user = self.context['request'].user
