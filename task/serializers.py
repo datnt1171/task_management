@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.conf import settings
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
 from process.models import ProcessField, Action
@@ -270,11 +271,26 @@ class TaskActionSerializer(serializers.Serializer):
 
 
 class TaskFileDataSerializer(serializers.ModelSerializer):
-    uploaded_file = serializers.FileField(required=False)
-    
+    uploaded_file = serializers.SerializerMethodField()
     class Meta:
         model = TaskFileData
         fields = ['original_filename', 'uploaded_file']
+    
+    def get_uploaded_file(self, obj):
+        if obj.uploaded_file:
+            # Use the configured domain URL instead of request-based URL
+            domain = getattr(settings, 'DOMAIN_URL', '')
+            if domain:
+                return f"{domain}{obj.uploaded_file.url}"
+            
+            # Fallback to request-based URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.uploaded_file.url)
+            
+            # Last fallback - relative URL
+            return obj.uploaded_file.url
+        return None
 
 
 class TaskDataSerializer(serializers.ModelSerializer):
@@ -294,11 +310,27 @@ class TaskDataSerializer(serializers.ModelSerializer):
 class TaskActionLogSerializer(serializers.ModelSerializer):
     user = UserListSerializer()
     action = ActionSerializer()
-    file = serializers.FileField(required=False)
+    file = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskActionLog
         fields = ['id', 'user', 'action', 'created_at', 'comment', 'file']
+
+    def get_file(self, obj):
+        if obj.file:
+            # Use the configured domain URL instead of request-based URL
+            domain = getattr(settings, 'DOMAIN_URL', '')
+            if domain:
+                return f"{domain}{obj.file.url}"
+            
+            # Fallback to request-based URL
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            
+            # Last fallback - relative URL
+            return obj.file.url
+        return None
 
 
 class TaskDetailSerializer(serializers.ModelSerializer):
