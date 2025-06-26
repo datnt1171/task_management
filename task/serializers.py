@@ -194,24 +194,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                     )
 
         return task
-    
-
-class TaskDataInputSerializer(serializers.Serializer):
-    field_id = serializers.UUIDField()
-    value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False, validators=[FileValidator()])
-
-    def validate(self, data):
-        """Ensure either value or file is provided, but not both for file fields"""
-        field_id = data.get('field_id')
-        value = data.get('value')
-        file = data.get('file')
-        
-        if value and file:
-            # Handle your business logic here
-            pass
-        
-        return data
 
 
 class TaskActionSerializer(serializers.Serializer):
@@ -296,14 +278,27 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
     files = TaskFileDataSerializer(many=True)
+    value = serializers.SerializerMethodField()
 
     class Meta:
         model = TaskData
         fields = ['field', 'value', 'files']
-
+        
     @extend_schema_field(ProcessFieldSerializer)
     def get_field(self, obj):
         return ProcessFieldSerializer(obj.field).data
+    
+    def get_value(self, obj):
+        if obj.field.field_type == 'assignee' and obj.value:
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(id=obj.value)
+                full_name = f"{user.first_name} {user.last_name}".strip()
+                return f"{full_name} ({user.username})" if full_name else user.username
+            except (User.DoesNotExist, ValueError):
+                return obj.value
+        return obj.value
 
 
 
