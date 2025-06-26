@@ -375,6 +375,7 @@ class SPRReportRowSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     created_by = serializers.CharField()
     user_id = serializers.UUIDField()
+    state = serializers.CharField()
     state_type = serializers.CharField()
     customer_name = serializers.CharField()
     finishing_code = serializers.CharField()

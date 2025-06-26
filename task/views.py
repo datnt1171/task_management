@@ -10,6 +10,7 @@ from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           SPRReportRowSerializer)
 from process.models import Action
 from drf_spectacular.utils import extend_schema
+from django.utils.translation import get_language
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -81,13 +82,23 @@ class SPRReportView(APIView):
         description="Returns a report of tasks for a specific process using raw SQL."
     )
     def get(self, request):
+        lang = get_language()  # e.g. 'vi', 'en'
+        translated_column = f"wes.name_{lang}"  # Use modeltranslation's convention
+
+        # Optional: fallback to 'wes.name' if column doesn't exist — unsafe but fast
+        allowed_columns = {'wes.name_en', 'wes.name_vi'}
+        if translated_column not in allowed_columns:
+            translated_column = "wes.name"
+
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT 
+            cursor.execute(f"""
+                SELECT 
                     tt.id AS task_id,
                     tt.title,
                     tt.created_at,
                     uu.username as created_by,
                     uu.id as user_id,
+                    {translated_column} AS state,
                     wes.state_type AS state_type,
                     MAX(CASE WHEN td.field_id = '7eab39b2-4f57-4dec-ac2e-d659386d3b22' THEN td.value END) AS customer_name,
                     MAX(CASE WHEN td.field_id = '500c2fe9-4101-43a2-b99a-eeee0f617489' THEN td.value END) AS finishing_code,
@@ -100,7 +111,7 @@ class SPRReportView(APIView):
                 JOIN workflow_engine_state wes ON tt.state_id = wes.id
                 LEFT JOIN task_taskdata td ON td.task_id = tt.id
                 WHERE tt.process_id = '593b22b4-e91d-4fdc-8351-88861b1cd50e'
-                GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.username, uu.id, wes.state_type
+                GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.username, uu.id, wes.state_type, {translated_column}
                 ORDER BY tt.created_at DESC
             """)
             columns = [col[0] for col in cursor.description]
