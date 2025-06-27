@@ -1,7 +1,9 @@
 from .models import User
-from .serializers import UserDetailSerializer, UserListSerializer
+from .serializers import UserDetailSerializer, UserListSerializer, ChangePasswordSerializer
 from django.db.models import Q
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
+from rest_framework import status
+from rest_framework.response import Response
 
 class UserProfileView(RetrieveAPIView):
     serializer_class = UserDetailSerializer
@@ -24,4 +26,26 @@ class UserRetrieveView(RetrieveAPIView):
         Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
     )
     serializer_class = UserListSerializer
+    
+    
 
+
+class ChangePasswordView(UpdateAPIView):
+    serializer_class = ChangePasswordSerializer
+
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = self.get_object()
+        user.set_password(serializer.validated_data['new_password'])
+        user.is_password_changed = True
+        user.save()
+        
+        return Response(
+            {"message": "Password changed successfully"}, 
+            status=status.HTTP_200_OK
+        )

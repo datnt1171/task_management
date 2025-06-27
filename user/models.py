@@ -53,6 +53,7 @@ class User(AbstractUser):
         blank=True,
         related_name="subordinates"
     )
+    is_password_changed = models.BooleanField(default=False)
     objects = UserManager()
 
     @property

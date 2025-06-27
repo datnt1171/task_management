@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     # 'silk',
     'drf_spectacular',
     'django_filters',
-    'djoser',
     
     'modeltranslation',
     
@@ -206,13 +205,6 @@ CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 
 CORS_ALLOW_CREDENTIALS = True
-
-DJOSER = {
-    'USER_ID_FIELD': 'id',
-    'SET_PASSWORD_RETYPE': True,
-    'PASSWORD_RESET_CONFIRM_RETYPE': True,
-    'LOGOUT_ON_PASSWORD_CHANGE': False,
-}
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
