@@ -294,8 +294,7 @@ class TaskDataSerializer(serializers.ModelSerializer):
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 user = User.objects.get(id=obj.value)
-                full_name = f"{user.first_name} {user.last_name}".strip()
-                return f"{full_name} ({user.username})" if full_name else user.username
+                return str(user)
             except (User.DoesNotExist, ValueError):
                 return obj.value
         return obj.value

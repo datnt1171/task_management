@@ -59,10 +59,10 @@ class User(AbstractUser):
     @property
     def full_name(self):
         if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
+            return f"{self.last_name} {self.first_name}"
         return self.username
 
     def __str__(self):
         if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name} ({self.username})"
+            return f"{self.last_name} {self.first_name} ({self.username})"
         return self.username
