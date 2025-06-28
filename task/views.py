@@ -83,10 +83,11 @@ class SPRReportView(APIView):
     )
     def get(self, request):
         lang = get_language()  # e.g. 'vi', 'en'
+        if lang == 'zh-hant':
+            lang = 'zh_hant'
         translated_column = f"wes.name_{lang}"  # Use modeltranslation's convention
 
-        # Optional: fallback to 'wes.name' if column doesn't exist — unsafe but fast
-        allowed_columns = {'wes.name_en', 'wes.name_vi'}
+        allowed_columns = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
         if translated_column not in allowed_columns:
             translated_column = "wes.name"
 
