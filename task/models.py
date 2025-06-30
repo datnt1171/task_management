@@ -11,8 +11,9 @@ def generate_task_title(process: Process) -> str:
     current_time = now()
     year_month = current_time.strftime('%y%m')
 
+    # Count tasks from ALL processes with same prefix in same month
     task_count = Task.objects.filter(
-        process=process,
+        process__prefix=prefix,
         created_at__year=current_time.year,
         created_at__month=current_time.month
     ).count() + 1
