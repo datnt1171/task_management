@@ -58,10 +58,7 @@ class TaskData(models.Model):
 class TaskFileData(models.Model):
     task_data = models.ForeignKey(TaskData, on_delete=models.CASCADE, related_name='files')
     uploaded_file = models.FileField(
-        upload_to='uploads/task_data_files/',
-        validators=[FileExtensionValidator(allowed_extensions=[
-            'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx'
-        ])]
+        upload_to='uploads/task_data_files/'
     )
     original_filename = models.CharField(max_length=255, blank=True)
     file_size = models.IntegerField(blank=True, null=True)
@@ -79,10 +76,7 @@ class TaskActionLog(models.Model):
     file = models.FileField(
         upload_to='task_logs/',
         null=True,
-        blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=[
-            'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx'
-        ])]
+        blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

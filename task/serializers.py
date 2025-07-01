@@ -67,7 +67,7 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False, validators=[FileValidator()])
+    file = serializers.FileField(required=False)
 
     def validate(self, data):
         """Ensure either value or file is provided, but not both for file fields"""
@@ -169,13 +169,13 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 uploaded_file = field_data.get('file')
                 field_value = field_data.get('value')
                 
-                # If field type is file but no file provided, and it's required
-                if field_obj.field_type == 'file' and not uploaded_file and field_obj.required:
-                    raise serializers.ValidationError(f"File is required for field '{field_obj.name}'")
+                # # If field type is file but no file provided, and it's required
+                # if field_obj.field_type == 'file' and not uploaded_file and field_obj.required:
+                #     raise serializers.ValidationError(f"File is required for field '{field_obj.name}'")
                 
-                # If field type is not file but file is provided
-                if field_obj.field_type != 'file' and uploaded_file:
-                    raise serializers.ValidationError(f"Field '{field_obj.name}' does not accept files")
+                # # If field type is not file but file is provided
+                # if field_obj.field_type != 'file' and uploaded_file:
+                #     raise serializers.ValidationError(f"Field '{field_obj.name}' does not accept files")
 
                 task_data = TaskData.objects.create(
                     task=task,
@@ -188,9 +188,10 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                     TaskFileData.objects.create(
                         task_data=task_data,
                         uploaded_file=uploaded_file,
-                        original_filename=uploaded_file.name,
-                        file_size=uploaded_file.size,
-                        mime_type=uploaded_file.content_type or ''
+                        original_filename=uploaded_file.name or 'unknown',
+                        file_size=uploaded_file.size or 0,
+                        # Handle cases where content_type might be None
+                        mime_type=getattr(uploaded_file, 'content_type', '') or 'application/octet-stream'
                     )
 
         return task
