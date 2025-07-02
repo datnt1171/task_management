@@ -1,14 +1,12 @@
-from django.db.models import Prefetch
+from django.db.models import Prefetch, F
 from django.db import connection
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .permission_service import PermissionService
-from .models import Task, TaskActionLog, TaskData
+from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
                           SPRReportRowSerializer)
-from process.models import Action
 from drf_spectacular.utils import extend_schema
 from django.utils.translation import get_language
 
@@ -17,31 +15,37 @@ class SentTasksAPIView(generics.ListAPIView):
     serializer_class = SentTaskSerializer
 
     def get_queryset(self):
-        return Task.objects.filter(created_by=self.request.user)
+        # Add prefetching for better performance in serializers
+        return Task.objects.filter(
+            created_by=self.request.user
+        ).select_related(
+            'process', 'state', 'created_by'
+        ).prefetch_related(
+            'taskpermission_set__user',
+            'taskpermission_set__action'
+        )
 
 
 class ReceivedTasksAPIView(generics.ListAPIView):
     serializer_class = ReceivedTaskSerializer
-    queryset = Task.objects.none()
 
     def get_queryset(self):
         user = self.request.user
-        tasks = Task.objects.all()
-        allowed_tasks = []
-
-        for task in tasks:
-            # Check if user has permission to perform any action on this task from current state
-            possible_actions = Action.objects.filter(
-                actiontransition__transition__current_state=task.state,
-                process=task.process
-            ).distinct()
-
-            for action in possible_actions:
-                if PermissionService.user_can_perform_action(user, task, action):
-                    allowed_tasks.append(task)
-                    break  # No need to check more actions for this task
-
-        return allowed_tasks
+        
+        # Single complex query to get all tasks user can act on from current state
+        return Task.objects.filter(
+            # User has permission for this task
+            id__in=TaskPermission.objects.filter(user=user).values_list('task_id', flat=True)
+        ).filter(
+            # And the action is available from current state
+            taskpermission__user=user,
+            taskpermission__action__actiontransition__transition__current_state=F('state')
+        ).select_related(
+            'process', 'state', 'created_by'
+        ).prefetch_related(
+            'taskpermission_set__user',
+            'taskpermission_set__action'
+        ).distinct()
 
 
 class TaskCreateView(generics.CreateAPIView):

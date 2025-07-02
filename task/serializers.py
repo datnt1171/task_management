@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.conf import settings
 from rest_framework import serializers
-from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData
+from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission
 from process.models import ProcessField, Action
 from process.serializers import ProcessFieldSerializer, ProcessListSerializer, ActionSerializer
 from workflow_engine.models import State, Transition
@@ -23,17 +23,19 @@ class SentTaskSerializer(serializers.ModelSerializer):
 
     def get_recipient(self, obj) -> str | None:
         """
-        Try to identify a user who is allowed to act on the task from the start state.
+        Single query optimization - get all permissions for this task at once.
         """
-        possible_actions = Action.objects.filter(
-            actiontransition__transition__current_state=obj.state,
-            process=obj.process
-        ).distinct()
-
-        for action in possible_actions:
-            allowed_users = PermissionService.get_allowed_users_for_action(obj, action)
-            for user in allowed_users:
-                return user.username
+        # Get possible actions and their permissions in one query
+        permissions = TaskPermission.objects.filter(
+            task=obj,
+            action__actiontransition__transition__current_state=obj.state,
+            action__process=obj.process
+        ).select_related('user', 'action').distinct()
+        
+        # Return first available user
+        if permissions:
+            return permissions[0].user.username
+        
         return None
 
 
@@ -50,18 +52,19 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
 
     def get_action(self, obj) -> str | None:
         """
-        Return the name of the first action the current user is allowed to perform on this task.
+        Single query optimization for current user's permissions.
         """
         user = self.context['request'].user
-        possible_actions = Action.objects.filter(
-            actiontransition__transition__current_state=obj.state,
-            process=obj.process
-        ).distinct()
-
-        for action in possible_actions:
-            if PermissionService.user_can_perform_action(user, obj, action):
-                return action.name
-        return None
+        
+        # Get user's permissions for current state actions in one query
+        permission = TaskPermission.objects.filter(
+            task=obj,
+            user=user,
+            action__actiontransition__transition__current_state=obj.state,
+            action__process=obj.process
+        ).select_related('action').first()
+        
+        return permission.action.name if permission else None
      
         
 class TaskDataInputSerializer(serializers.Serializer):
@@ -195,6 +198,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                         # Handle cases where content_type might be None
                         mime_type=getattr(uploaded_file, 'content_type', '') or 'application/octet-stream'
                     )
+            PermissionService.create_task_permissions(task)
 
         return task
 

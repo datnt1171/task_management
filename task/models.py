@@ -87,3 +87,22 @@ class TaskActionLog(models.Model):
 
     def __str__(self):
         return f"{self.task} - {self.user} - {self.action}"
+    
+
+class TaskPermission(models.Model):
+    """Stores computed permissions when task is created"""
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, db_index=True)
+    action = models.ForeignKey(Action, on_delete=models.CASCADE, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_index=True)
+    role_type = models.CharField(max_length=100) # RoleType
+    granted_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['task', 'action', 'user']
+        indexes = [
+            models.Index(fields=['task', 'action']),
+            models.Index(fields=['user', 'action']),
+        ]
+        
+    def __str__(self):
+        return f"{self.task} - {self.user} - {self.action}"
