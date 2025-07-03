@@ -105,17 +105,17 @@ class SPRReportView(APIView):
                     uu.id as user_id,
                     {translated_column} AS state,
                     wes.state_type AS state_type,
-                    MAX(CASE WHEN td.field_id = '7eab39b2-4f57-4dec-ac2e-d659386d3b22' THEN td.value END) AS customer_name,
-                    MAX(CASE WHEN td.field_id = '500c2fe9-4101-43a2-b99a-eeee0f617489' THEN td.value END) AS finishing_code,
-                    MAX(CASE WHEN td.field_id = '97786485-e4ba-48e4-87d4-1e4c84dd316d' THEN td.value END) AS customer_color_name,
-                    MAX(CASE WHEN td.field_id = '628cd098-df28-4c90-9045-d3d1b2d35395' THEN td.value END) AS collection,
-                    MAX(CASE WHEN td.field_id = '68abbf7f-a8a4-4501-9ebc-c6e70b7db91e' THEN td.value END) AS quantity,
-                    MAX(CASE WHEN td.field_id = 'd096260a-d19e-4750-b444-9ea6a1173e2f' THEN td.value END) AS deadline
+                    MAX(CASE WHEN td.field_id = 'dd530dff-48a0-4385-9512-273da3210467' THEN td.value END) AS customer_name,
+                    MAX(CASE WHEN td.field_id = 'ad276e61-acac-4125-8f6c-f37ea88c8561' THEN td.value END) AS finishing_code,
+                    MAX(CASE WHEN td.field_id = '24fe8fdd-863d-426c-89db-76fd7b3d7c4f' THEN td.value END) AS customer_color_name,
+                    MAX(CASE WHEN td.field_id = 'c07e4717-5ef7-48f6-b46f-34813a583388' THEN td.value END) AS collection,
+                    MAX(CASE WHEN td.field_id = '0b7ec8a1-8abe-4e3b-9427-ab0b6bd1a6f1' THEN td.value END) AS quantity,
+                    MAX(CASE WHEN td.field_id = 'f01a7bae-80e1-4a6d-b2d5-046af28a5510' THEN td.value END) AS deadline
                 FROM task_task tt
                 JOIN user_user uu ON tt.created_by_id = uu.id
                 JOIN workflow_engine_state wes ON tt.state_id = wes.id
                 LEFT JOIN task_taskdata td ON td.task_id = tt.id
-                WHERE tt.process_id = '593b22b4-e91d-4fdc-8351-88861b1cd50e'
+                WHERE tt.process_id = '8c29ab80-1df7-47d0-b7b1-eb2149c0dee3'
                 GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.username, uu.id, wes.state_type, {translated_column}
                 ORDER BY tt.created_at DESC
             """)
