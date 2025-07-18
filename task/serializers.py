@@ -8,6 +8,7 @@ from workflow_engine.models import State, Transition
 from workflow_engine.serializers import StateSerializer
 from .permission_service import PermissionService
 from user.serializers import UserListSerializer
+from user.models import User
 from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
         
@@ -298,8 +299,6 @@ class TaskDataSerializer(serializers.ModelSerializer):
     def get_value(self, obj):
         if obj.field.field_type == 'assignee' and obj.value:
             try:
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
                 user = User.objects.get(id=obj.value)
                 return str(user)
             except (User.DoesNotExist, ValueError):
