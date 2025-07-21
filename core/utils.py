@@ -44,8 +44,10 @@ class FileValidator:
         if file_extension not in self.allowed_extensions:
             allowed_str = ', '.join(self.allowed_extensions)
             raise serializers.ValidationError(
+                {"non_field_errors": [
                 f"File extension '{file_extension}' is not allowed. "
                 f"Allowed extensions: {allowed_str}"
+                ]}
             )
     
     def validate_size(self, file):
@@ -54,8 +56,10 @@ class FileValidator:
             size_mb = self.max_file_size / (1024 * 1024)
             current_size_mb = file.size / (1024 * 1024)
             raise serializers.ValidationError(
+                {"non_field_errors": [
                 f"File size exceeds maximum allowed size of {size_mb}MB. "
                 f"Current file size: {current_size_mb:.2f}MB"
+                ]}
             )
     
     def validate_mime_type(self, file):
@@ -76,7 +80,9 @@ class FileValidator:
         
         if file_mime_type not in expected_mime_types:
             raise serializers.ValidationError(
+                {"non_field_errors": [
                 f"File content doesn't match extension. "
                 f"Expected MIME type: {', '.join(expected_mime_types)}, "
                 f"but got: {file_mime_type}"
+                ]}
             )

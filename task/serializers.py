@@ -152,7 +152,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         ).distinct().first()
 
         if not start_state:
-            raise serializers.ValidationError("No start state is defined for this process.")
+            raise serializers.ValidationError({"non_field_errors": ["No start state is defined for this process."]})
 
         with transaction.atomic():
             task = Task.objects.create(
@@ -167,7 +167,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 try:
                     field_obj = ProcessField.objects.get(id=field_id, process=process)
                 except ProcessField.DoesNotExist:
-                    raise serializers.ValidationError(f"Field ID {field_id} is invalid for this process.")
+                    raise serializers.ValidationError({"non_field_errors": [f"Field ID {field_id} is invalid for this process."]})
 
                 # Validate field type vs provided data
                 uploaded_file = field_data.get('file')
@@ -213,15 +213,15 @@ class TaskActionSerializer(serializers.Serializer):
         user = self.context['request'].user
         task = self.context['task']
         action_id = attrs['action_id']
-        
+
         try:
             action = Action.objects.get(id=action_id, process=task.process)
         except Action.DoesNotExist:
-            raise serializers.ValidationError("Invalid action for this process.")
+            raise serializers.ValidationError({"non_field_errors": ["Invalid action for this process."]})
         
         # Check permission via PermissionService
         if not PermissionService.user_can_perform_action(user, task, action):
-            raise serializers.ValidationError("You do not have permission to perform this action.")
+            raise serializers.ValidationError({"non_field_errors": ["You do not have permission to perform this action."]})
         
         try:
             transition = Transition.objects.get(
@@ -230,7 +230,7 @@ class TaskActionSerializer(serializers.Serializer):
                 actiontransition__action=action
             )
         except Transition.DoesNotExist:
-            raise serializers.ValidationError("No valid transition from current state for this action.")
+            raise serializers.ValidationError({"non_field_errors": ["No valid transition from current state for this action."]})
         
         attrs['action'] = action
         attrs['transition'] = transition
