@@ -1,9 +1,15 @@
 from .models import User
-from .serializers import UserDetailSerializer, UserListSerializer, ChangePasswordSerializer
+from .serializers import UserDetailSerializer, UserListSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer
 from django.db.models import Q
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .permissions import HasJWTPermission
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 class UserProfileView(RetrieveAPIView):
     serializer_class = UserDetailSerializer
@@ -14,7 +20,8 @@ class UserProfileView(RetrieveAPIView):
 
 class UserListView(ListAPIView):
     serializer_class = UserListSerializer
-
+    permission_classes = [HasJWTPermission]
+    required_permission = 'read.user.list'
     def get_queryset(self):
         return User.objects.active().exclude(
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
@@ -26,8 +33,6 @@ class UserRetrieveView(RetrieveAPIView):
         Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
     )
     serializer_class = UserListSerializer
-    
-    
 
 
 class ChangePasswordView(UpdateAPIView):

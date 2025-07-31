@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User, Role, Department
+from .models import User, Role, Department, RolePermission
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -46,4 +47,70 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add user basic info
+        token['user_id'] = str(user.id)
+        token['username'] = user.username
+        
+        # Add organizational context
+        token['department'] = user.department.name
+        token['role'] = user.role.name
+        token['business_function'] = user.business_function.name
+        
+        # Add permissions
+        permissions = cls.get_user_permissions(user)
+        token['permissions'] = permissions
+        
+        return token
+    
+    @classmethod
+    def get_user_permissions(cls, user):
+        """
+        Get all permissions for the user based on their role, department, and business function
+        Returns a structured permission object that can be easily consumed by frontend/other services
+        """
+        # Get all role permissions that match user's context
+        role_permissions = RolePermission.objects.filter(
+            role=user.role,
+            department=user.department,
+            business_function=user.business_function
+        ).select_related('permission')
+        
+        no_dept_permissions = RolePermission.objects.filter(
+            role=user.role,
+            department=user.department,
+            business_function__isnull=True
+        ).select_related('permission')
+        
+        no_func_permissions = RolePermission.objects.filter(
+            role=user.role,
+            department__isnull=True,
+            business_function=user.business_function
+        ).select_related('permission')
+        
+        global_permissions = RolePermission.objects.filter(
+            role=user.role,
+            department__isnull=True,
+            business_function__isnull=True
+        ).select_related('permission')
+        
+        # Combine permissions
+        all_permissions = list(role_permissions) + list(no_dept_permissions) + list(no_func_permissions) + list(global_permissions)
+        
+        # Structure permissions for easy consumption
+        permissions = []
+        
+        for rp in all_permissions:
+            perm = rp.permission
+            entry = f"{perm.action}.{perm.service}.{perm.resource}"
+            if entry not in permissions:
+                permissions.append(entry)
+        
+        return permissions
         

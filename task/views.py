@@ -9,6 +9,7 @@ from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           SPRReportRowSerializer)
 from drf_spectacular.utils import extend_schema
 from django.utils.translation import get_language
+from user.permissions import HasJWTPermission
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -81,6 +82,9 @@ class TaskDetailView(generics.RetrieveAPIView):
 
 
 class SPRReportView(APIView):
+    permission_classes = [HasJWTPermission]
+    required_permission = 'read.task.sample-request'
+    
     @extend_schema(
         responses=SPRReportRowSerializer(many=True),
         description="Returns a report of tasks for a specific process using raw SQL."
