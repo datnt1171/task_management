@@ -93,7 +93,7 @@ class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='users')
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users')
-    #business_function = models.ForeignKey(BusinessFunction, on_delete=models.PROTECT, related_name='users')
+    business_function = models.ForeignKey(BusinessFunction, on_delete=models.PROTECT, related_name='users')
     supervisor = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
