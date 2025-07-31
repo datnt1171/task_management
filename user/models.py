@@ -23,6 +23,53 @@ class Role(models.Model):
         return self.name
 
 
+class BusinessFunction(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Permission(models.Model):
+    """Custom permissions for business operations"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True)
+    action = models.CharField(max_length=10)
+    service = models.TextField(max_length=20)
+    resource = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['action','service','resource'], name='unique_permission')
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class RolePermission(models.Model):
+    """Many-to-many relationship between roles and permissions"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
+    business_function = models.ForeignKey(BusinessFunction, on_delete=models.CASCADE, null=True, blank=True)
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE)
+    
+    
+    class Meta:
+        unique_together = ['role', 'department', 'business_function', 'permission']
+    
+    def __str__(self):
+        dept_str = f"{self.department.name}" if self.department else ""
+        func_str = f"{self.business_function.name}" if self.business_function else ""
+        return f"{self.role.name}.{dept_str}.{func_str}{self.permission.name}"
+
+
 class UserManager(BaseUserManager):
     def create_user(self, username, email=None, password=None, **extra_fields):
         if not username:
@@ -46,6 +93,7 @@ class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='users')
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users')
+    #business_function = models.ForeignKey(BusinessFunction, on_delete=models.PROTECT, related_name='users')
     supervisor = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
