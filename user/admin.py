@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import User, Department, Role
+from .models import User, Department, Role, BusinessFunction, Permission, RolePermission
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -48,3 +48,6 @@ class CustomUserAdmin(UserAdmin):
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Role)
+admin.site.register(BusinessFunction)
+admin.site.register(Permission)
+admin.site.register(RolePermission)
