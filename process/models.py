@@ -129,6 +129,8 @@ class FieldType(models.TextChoices):
     FILE = 'file', 'File'
     JSON = 'json', 'Table'
     ASSIGNEE = 'assignee', 'Assignee'
+    FACTORY = 'factory', 'Factory'
+    RETAILER = 'retailer', 'Retailer'
 
 
 class ProcessField(models.Model):
@@ -144,9 +146,7 @@ class ProcessField(models.Model):
     
     
     class Meta:
-        constraints = [
-        models.UniqueConstraint(fields=['process', 'name'], name='unique_process_field')
-    ]
+        unique_together = [('process', 'name')]
         ordering = ['order']
     
     def clean(self):

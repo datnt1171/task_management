@@ -22,6 +22,8 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 # Application definition
 
 INSTALLED_APPS = [
+    'modeltranslation',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,8 +40,6 @@ INSTALLED_APPS = [
     # 'silk',
     'drf_spectacular',
     'django_filters',
-    
-    'modeltranslation',
     
     'process',
     'task',
