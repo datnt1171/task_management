@@ -6,10 +6,13 @@ from rest_framework.views import APIView
 from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
-                          SPRReportRowSerializer)
+                          SPRReportRowSerializer, TaskDataSerializer)
 from drf_spectacular.utils import extend_schema
 from django.utils.translation import get_language
 from user.permissions import HasJWTPermission
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.shortcuts import get_object_or_404
+from process.models import FieldType
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -129,3 +132,36 @@ class SPRReportView(APIView):
         return Response(results, status=status.HTTP_200_OK)
         
         
+class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = TaskDataSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    
+    def get_object(self):
+        task = get_object_or_404(Task, id=self.kwargs['task_id'])
+        
+        # Only task creator can edit task data
+        if task.created_by != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only task creator can edit task data")
+        
+        task_data = get_object_or_404(TaskData, task=task, field_id=self.kwargs['field_id'])
+        return task_data
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Handle file upload for FILE type fields  
+        if instance.field.field_type == FieldType.FILE:
+            file = request.FILES.get('file')
+            data = {'file': file} if file else {}
+            if 'value' in request.data:
+                data['value'] = request.data['value']
+        else:
+            data = request.data
+        
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
+        # Return fresh data after update
+        return Response(self.get_serializer(instance).data)
