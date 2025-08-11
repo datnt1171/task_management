@@ -137,6 +137,7 @@ class ProcessField(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, blank=True)
     field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)
     order = models.PositiveSmallIntegerField()
     required = models.BooleanField(default=False)

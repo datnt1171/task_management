@@ -13,4 +13,4 @@ class ActionTranslationOptions(TranslationOptions):
     
 @register(ProcessField)
 class ProcessFieldTranslationOptions(TranslationOptions):
-    fields = ('name',)
+    fields = ('name', 'description',)
