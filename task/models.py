@@ -45,7 +45,6 @@ class TaskData(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['task','field'], name='unique_task_field')
@@ -54,6 +53,42 @@ class TaskData(models.Model):
     def __str__(self):
         return f"{self.task} - {self.field}"
     
+    def save_with_history(self, user, new_value=None, commit=True):
+        """Save with automatic history tracking"""
+        old_value = self.value if self.pk else None
+        
+        # Update value if provided
+        if new_value is not None:
+            self.value = new_value
+            
+        # Create history record if value changed (store old value)
+        if old_value != self.value and old_value is not None:
+            TaskDataHistory.objects.create(
+                task_data=self,
+                value=old_value,  
+                updated_by=user,
+                updated_at=self.updated_at
+            )
+            
+        if commit:
+            self.save()
+        
+        return self
+
+
+class TaskDataHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_data = models.ForeignKey(TaskData, on_delete=models.CASCADE, related_name='history')
+    value = models.TextField(blank=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    updated_at = models.DateTimeField()
+    
+    class Meta:
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"{self.task_data} - {self.updated_at}"
+
 
 class TaskFileData(models.Model):
     task_data = models.ForeignKey(TaskData, on_delete=models.CASCADE, related_name='files')
@@ -64,6 +99,9 @@ class TaskFileData(models.Model):
     file_size = models.IntegerField(blank=True, null=True)
     mime_type = models.CharField(max_length=100, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
 
 
 class TaskActionLog(models.Model):

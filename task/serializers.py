@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.conf import settings
 from rest_framework import serializers
-from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission
+from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission, TaskDataHistory
 from process.models import ProcessField, Action, FieldType
 from process.serializers import ProcessFieldSerializer, ProcessListSerializer, ActionSerializer
 from workflow_engine.models import State, Transition
@@ -267,7 +267,7 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
     uploaded_file = serializers.SerializerMethodField()
     class Meta:
         model = TaskFileData
-        fields = ['original_filename', 'uploaded_file']
+        fields = ['original_filename', 'uploaded_file', 'uploaded_at']
     
     def get_uploaded_file(self, obj):
         if obj.uploaded_file:
@@ -285,16 +285,24 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
             return obj.uploaded_file.url
         return None
 
+class TaskDataHistorySerializer(serializers.ModelSerializer):
+    updated_by = serializers.StringRelatedField()
+    
+    class Meta:
+        model = TaskDataHistory
+        fields = ['value', 'updated_by', 'updated_at']
+
 
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
     files = TaskFileDataSerializer(many=True, read_only=True)
+    history = TaskDataHistorySerializer(many=True, read_only=True)
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     file = serializers.FileField(required=False, write_only=True)
     
     class Meta:
         model = TaskData
-        fields = ['field', 'value', 'files', 'file']
+        fields = ['field', 'value', 'files', 'file', 'history']
     
     @extend_schema_field(ProcessFieldSerializer)
     def get_field(self, obj):
@@ -315,6 +323,7 @@ class TaskDataSerializer(serializers.ModelSerializer):
         # Use custom logic for displaying value
         data['value'] = self.get_value(instance)
         return data
+    
     def validate_value(self, value):
         field = self.instance.field if self.instance else None
         if not field or not value:
@@ -356,8 +365,16 @@ class TaskDataSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         file = validated_data.pop('file', None)
         
-        # Update value
-        instance = super().update(instance, validated_data)
+        # Update with history tracking
+        new_value = validated_data.get('value')
+        if new_value is not None:
+            instance.save_with_history(user=self.context.get('request').user, 
+                                       new_value=new_value)
+        else:
+            # Update other fields without history
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
         
         # Handle file upload for FILE type fields
         if instance.field.field_type == FieldType.FILE and file:
@@ -371,7 +388,6 @@ class TaskDataSerializer(serializers.ModelSerializer):
             )
         
         return instance
-
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):

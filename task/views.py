@@ -13,6 +13,7 @@ from user.permissions import HasJWTPermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from process.models import FieldType
+from rest_framework.exceptions import PermissionDenied
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -141,11 +142,14 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         
         # Only task creator can edit task data
         if task.created_by != self.request.user:
-            from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only task creator can edit task data")
         
         task_data = get_object_or_404(TaskData, task=task, field_id=self.kwargs['field_id'])
         return task_data
+    
+    def get_queryset(self):
+        # Prefetch history for performance
+        return TaskData.objects.prefetch_related('history__updated_by')
     
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
