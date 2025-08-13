@@ -1,8 +1,8 @@
 from django.db import transaction
 from django.conf import settings
 from rest_framework import serializers
-from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission
-from process.models import ProcessField, Action
+from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission, TaskDataHistory
+from process.models import ProcessField, Action, FieldType
 from process.serializers import ProcessFieldSerializer, ProcessListSerializer, ActionSerializer
 from workflow_engine.models import State, Transition
 from workflow_engine.serializers import StateSerializer
@@ -11,7 +11,10 @@ from user.serializers import UserListSerializer
 from user.models import User
 from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
-        
+import json
+from datetime import datetime
+
+
 class SentTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
     recipient = serializers.SerializerMethodField()
@@ -264,7 +267,7 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
     uploaded_file = serializers.SerializerMethodField()
     class Meta:
         model = TaskFileData
-        fields = ['original_filename', 'uploaded_file']
+        fields = ['original_filename', 'uploaded_file', 'uploaded_at']
     
     def get_uploaded_file(self, obj):
         if obj.uploaded_file:
@@ -282,16 +285,25 @@ class TaskFileDataSerializer(serializers.ModelSerializer):
             return obj.uploaded_file.url
         return None
 
+class TaskDataHistorySerializer(serializers.ModelSerializer):
+    updated_by = serializers.StringRelatedField()
+    
+    class Meta:
+        model = TaskDataHistory
+        fields = ['value', 'updated_by', 'updated_at']
+
 
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
-    files = TaskFileDataSerializer(many=True)
-    value = serializers.SerializerMethodField()
-
+    files = TaskFileDataSerializer(many=True, read_only=True)
+    history = TaskDataHistorySerializer(many=True, read_only=True)
+    value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    file = serializers.FileField(required=False, write_only=True)
+    
     class Meta:
         model = TaskData
-        fields = ['field', 'value', 'files']
-        
+        fields = ['field', 'value', 'files', 'file', 'history']
+    
     @extend_schema_field(ProcessFieldSerializer)
     def get_field(self, obj):
         return ProcessFieldSerializer(obj.field).data
@@ -304,7 +316,78 @@ class TaskDataSerializer(serializers.ModelSerializer):
             except (User.DoesNotExist, ValueError):
                 return obj.value
         return obj.value
-
+    
+    def to_representation(self, instance):
+        """Custom representation for GET requests"""
+        data = super().to_representation(instance)
+        # Use custom logic for displaying value
+        data['value'] = self.get_value(instance)
+        return data
+    
+    def validate_value(self, value):
+        field = self.instance.field if self.instance else None
+        if not field or not value:
+            return value
+            
+        # Field-type specific validation
+        if field.field_type == FieldType.NUMBER:
+            try:
+                float(value)
+            except (ValueError, TypeError):
+                raise serializers.ValidationError("Value must be a valid number")
+                
+        elif field.field_type == FieldType.DATE:
+            try:
+                datetime.strptime(value, '%Y-%m-%d')
+            except ValueError:
+                raise serializers.ValidationError("Value must be in YYYY-MM-DD format")
+                
+        elif field.field_type == FieldType.SELECT:
+            if field.options and 'choices' in field.options:
+                valid_choices = [choice['value'] for choice in field.options['choices']]
+                if value not in valid_choices:
+                    raise serializers.ValidationError(f"Value must be one of: {valid_choices}")
+                    
+        elif field.field_type == FieldType.JSON:
+            try:
+                json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Value must be valid JSON")
+                
+        elif field.field_type == FieldType.ASSIGNEE:
+            try:
+                User.objects.get(id=value)
+            except (User.DoesNotExist, ValueError):
+                raise serializers.ValidationError("Invalid user ID")
+                
+        return value
+    
+    def update(self, instance, validated_data):
+        file = validated_data.pop('file', None)
+        
+        # Update with history tracking
+        new_value = validated_data.get('value')
+        if new_value is not None:
+            instance.save_with_history(user=self.context.get('request').user, 
+                                       new_value=new_value)
+        else:
+            # Update other fields without history
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+        
+        # Handle file upload for FILE type fields
+        if instance.field.field_type == FieldType.FILE and file:
+            # Keep existing files and add new one (no deletion)
+            TaskFileData.objects.create(
+                task_data=instance,
+                uploaded_file=file,
+                original_filename=file.name,
+                file_size=file.size,
+                mime_type=getattr(file, 'content_type', '')
+            )
+        
+        return instance
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):

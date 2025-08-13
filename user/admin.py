@@ -7,7 +7,7 @@ from .models import User, Department, Role, BusinessFunction, Permission, RolePe
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ('username', 'email', 'department', 'role', 'supervisor')
+        fields = ('username', 'email', 'department', 'role', 'business_function', 'supervisor')
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
@@ -24,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('username', 'email', 'password1', 'password2', 
-                      'department', 'role', 'supervisor', 
+                      'department', 'role', 'supervisor', 'business_function',
                       'first_name', 'last_name', 'is_active', 'is_staff'),
         }),
     )
@@ -37,12 +37,12 @@ class CustomUserAdmin(UserAdmin):
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions', 'is_password_changed'),
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
-        ('Work info', {'fields': ('department', 'role', 'supervisor')}),
+        ('Work info', {'fields': ('department', 'role', 'business_function', 'supervisor')}),
     )
     
-    list_display = ('username', 'email', 'full_name', 'department', 'role', 'is_active')
-    list_filter = ('department', 'role', 'is_staff', 'is_superuser', 'is_active')
-    search_fields = ('username', 'first_name', 'last_name', 'email')
+    list_display = ('username', 'full_name', 'department', 'role', 'business_function', 'is_active')
+    list_filter = ('department', 'role', 'business_function', 'is_active')
+    search_fields = ('username', 'first_name', 'last_name')
     ordering = ('username',)
 
 admin.site.register(User, CustomUserAdmin)

@@ -67,7 +67,7 @@ class Action(models.Model):
     updated_at = models.DateTimeField(auto_now=True)    
     
     def __str__(self):
-        return f"{self.name} ({self.get_action_type_display()})"
+        return f"{self.process.prefix}{self.process.version} - {self.name}"
     
     
 class RoleType(models.TextChoices):
@@ -129,12 +129,15 @@ class FieldType(models.TextChoices):
     FILE = 'file', 'File'
     JSON = 'json', 'Table'
     ASSIGNEE = 'assignee', 'Assignee'
+    FACTORY = 'factory', 'Factory'
+    RETAILER = 'retailer', 'Retailer'
 
 
 class ProcessField(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, blank=True)
     field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)
     order = models.PositiveSmallIntegerField()
     required = models.BooleanField(default=False)
@@ -144,9 +147,7 @@ class ProcessField(models.Model):
     
     
     class Meta:
-        constraints = [
-        models.UniqueConstraint(fields=['process', 'name'], name='unique_process_field')
-    ]
+        unique_together = [('process', 'name')]
         ordering = ['order']
     
     def clean(self):

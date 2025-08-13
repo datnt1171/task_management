@@ -46,7 +46,7 @@ class Transition(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.process} - {self.current_state} - {self.next_state}"
+        return f"{self.process.prefix}{self.process.version} - {self.current_state} - {self.next_state}"
 
 
 class ActionTransition(models.Model):
@@ -61,4 +61,5 @@ class ActionTransition(models.Model):
     ]
         
     def __str__(self):
-        return f"{self.transition.process} - {self.transition.current_state} - {self.action} - {self.transition.next_state}"
+        return f"{self.transition.process.prefix}{self.transition.process.version} - \
+        {self.transition.current_state} - {self.action.name} - {self.transition.next_state}"
