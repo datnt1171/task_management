@@ -8,7 +8,7 @@ class ProcessFieldInline(TranslationTabularInline):
     model = ProcessField
     extra = 0
     ordering = ['order']
-    fields = ('name', 'field_type', 'order', 'required', 'options',)
+    fields = ('name', 'description', 'field_type', 'order', 'required', 'options',)
     show_change_link = True
 
 
