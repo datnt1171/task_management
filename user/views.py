@@ -21,7 +21,7 @@ class UserProfileView(RetrieveAPIView):
 class UserListView(ListAPIView):
     serializer_class = UserListSerializer
     permission_classes = [HasJWTPermission]
-    required_permission = 'read.user.list'
+    # required_permission = 'read.user.list'
     def get_queryset(self):
         return User.objects.active().exclude(
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
