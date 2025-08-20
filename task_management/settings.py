@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'task',
     'user',
     'workflow_engine',
+    'sheet',
     # 'edms',
     
 ]
