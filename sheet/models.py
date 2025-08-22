@@ -17,75 +17,76 @@ class StepTemplate(models.Model):
         return self.short_name
 
 
-# class FormularTemplate(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     code = models.CharField(max_length=50, unique=True)
-#     viscosity = models.PositiveSmallIntegerField()
-#     wft = models.PositiveIntegerField()
-#     description = models.TextField(help_text="Reason to create this formular")
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+class FormularTemplate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=50, unique=True)
+    viscosity = models.PositiveSmallIntegerField()
+    wft = models.PositiveIntegerField()
+    description = models.TextField(help_text="Reason to create this formular")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-#     def __str__(self):
-#         return self.code
+    def __str__(self):
+        return self.code
 
 
-# class ProductTemplate(models.Model):
-#     """Product associated with Formular templates"""
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     formular_template = models.ForeignKey(
-#         FormularTemplate, 
-#         on_delete=models.CASCADE, 
-#         related_name='products'
-#     )
-#     code = models.CharField(max_length=128)
-#     name = models.CharField(max_length=128)
-#     ratio = models.DecimalField(max_digits=10, decimal_places=2)
-#     qty = models.CharField(max_length=50, blank=True)
-#     unit = models.CharField(max_length=20, blank=True)
+class ProductTemplate(models.Model):
+    """Product associated with Formular templates"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    formular_template = models.ForeignKey(
+        FormularTemplate, 
+        on_delete=models.CASCADE, 
+        related_name='products'
+    )
+    code = models.CharField(max_length=128)
+    name = models.CharField(max_length=128)
+    ratio = models.DecimalField(max_digits=10, decimal_places=2)
+    qty = models.CharField(max_length=50, blank=True)
+    unit = models.CharField(max_length=20, blank=True)
     
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-#     def __str__(self):
-#         return self.name
+    def __str__(self):
+        return self.name
 
 
-# class FinishingSheet(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     task = models.ForeignKey(
-#         'task.Task',
-#         on_delete=models.CASCADE,
-#         related_name='finishing_sheets',
-#     )
+class FinishingSheet(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(
+        'task.Task',
+        on_delete=models.CASCADE,
+        related_name='finishing_sheets',
+    )
 
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE)
+    updated_at = models.DateTimeField(auto_now=True)
 
-#     # Metadata
-#     finishing_code = models.CharField(max_length=255) # Title
-#     name = models.CharField(blank=True)
-#     sheen = models.CharField(max_length=50, blank=True) 
-#     dft = models.CharField(max_length=50, blank=True)
-#     type_of_paint = models.CharField(max_length=50, blank=True)
-#     type_of_substrate = models.CharField(max_length=200, blank=True)
-#     finishing_surface_grain = models.CharField(max_length=100, blank=True)
-#     sampler = models.CharField(max_length=100, blank=True)
+    # Metadata
+    finishing_code = models.CharField(max_length=255) # Title
+    name = models.CharField(blank=True)
+    sheen = models.CharField(max_length=50, blank=True) 
+    dft = models.CharField(max_length=50, blank=True)
+    type_of_paint = models.CharField(max_length=50, blank=True)
+    type_of_substrate = models.CharField(max_length=200, blank=True)
+    finishing_surface_grain = models.CharField(max_length=100, blank=True)
+    sampler = models.CharField(max_length=100, blank=True)
 
-#     # Process details (production-specific)
-#     chemical_waste = models.CharField(max_length=20)
-#     conveyor_speed = models.CharField(max_length=100)
+    # Process details (production-specific)
+    chemical_waste = models.CharField(max_length=20)
+    conveyor_speed = models.CharField(max_length=100)
 
-#     # Test flags
-#     with_panel_test = models.BooleanField(default=False)
-#     testing = models.BooleanField(default=False)
-#     chemical_yellowing = models.BooleanField(default=False)
+    # Test flags
+    with_panel_test = models.BooleanField(default=False)
+    testing = models.BooleanField(default=False)
+    chemical_yellowing = models.BooleanField(default=False)
     
-#     class Meta:
-#         ordering = ['-created_at']
+    class Meta:
+        ordering = ['-created_at']
     
-#     def __str__(self):
-#         return f"{self.finishing_code} - {self.created_at.date}"
+    def __str__(self):
+        return f"{self.finishing_code} - {self.created_at.date}"
 
 
 # class SheetRow(models.Model):
