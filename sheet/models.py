@@ -60,8 +60,9 @@ class FinishingSheet(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE)
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='creator')
     updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updater')
 
     # Metadata
     finishing_code = models.CharField(max_length=255) # Title
@@ -112,7 +113,7 @@ class FinishingSheet(models.Model):
     
 #     # Step data
 #     step_num = models.IntegerField()
-#     spot = models.IntegerField()
+#     spot = models.DecimalField(max_digits=4, decimal_places=1)
 
 #     stepname_en = models.CharField(max_length=255)
 #     stepname_vi = models.CharField(max_length=255)

@@ -5,5 +5,5 @@ class FinishingSheetSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = FinishingSheet
-        fields = ('id', 'task', 'created_at', 'created_by', 'updated_at', 'finishing_code')
-        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at')
+        fields = ('id', 'task', 'created_at', 'created_by', 'updated_at', 'updated_by', 'finishing_code')
+        read_only_fields = ('id', 'created_at', 'created_by', 'updated_at', 'updated_by')
