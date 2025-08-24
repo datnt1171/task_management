@@ -64,18 +64,18 @@ class FinishingSheet(models.Model):
     updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updated_sheets')
 
     # Metadata
-    finishing_code = models.CharField(max_length=255) # Title
-    name = models.CharField(blank=True)
-    sheen = models.CharField(max_length=50, blank=True) 
-    dft = models.CharField(max_length=50, blank=True)
-    type_of_paint = models.CharField(max_length=50, blank=True)
-    type_of_substrate = models.CharField(max_length=200, blank=True)
-    finishing_surface_grain = models.CharField(max_length=100, blank=True)
-    sampler = models.CharField(max_length=100, blank=True)
+    finishing_code = models.CharField() # Title
+    name = models.CharField()
+    sheen = models.CharField(max_length=50) 
+    dft = models.CharField(max_length=50)
+    type_of_paint = models.CharField(max_length=50)
+    type_of_substrate = models.CharField(max_length=200)
+    finishing_surface_grain = models.CharField(max_length=100)
+    sampler = models.CharField(max_length=100)
 
     # Process details (production-specific)
-    chemical_waste = models.CharField(max_length=20, blank=True)
-    conveyor_speed = models.CharField(max_length=100, blank=True)
+    chemical_waste = models.CharField(max_length=20)
+    conveyor_speed = models.CharField(max_length=100)
 
     # Test flags
     with_panel_test = models.BooleanField(default=False)
