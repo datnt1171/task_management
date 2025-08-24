@@ -21,8 +21,8 @@ class FormularTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True)
     viscosity = models.PositiveSmallIntegerField()
-    wft = models.PositiveIntegerField()
-    description = models.TextField(help_text="Reason to create this formular")
+    wft = models.PositiveIntegerField(blank=True, null=True)
+    description = models.TextField(blank=True, help_text="Reason to create this formular")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -41,8 +41,7 @@ class ProductTemplate(models.Model):
     code = models.CharField(max_length=128)
     name = models.CharField(max_length=128)
     ratio = models.DecimalField(max_digits=10, decimal_places=2)
-    qty = models.CharField(max_length=50, blank=True)
-    unit = models.CharField(max_length=20, blank=True)
+    unit = models.CharField(max_length=20, default='g')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -60,9 +59,9 @@ class FinishingSheet(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='creator')
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='created_sheets')
     updated_at = models.DateTimeField(auto_now=True)
-    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updater')
+    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updated_sheets')
 
     # Metadata
     finishing_code = models.CharField(max_length=255) # Title
@@ -75,8 +74,8 @@ class FinishingSheet(models.Model):
     sampler = models.CharField(max_length=100, blank=True)
 
     # Process details (production-specific)
-    chemical_waste = models.CharField(max_length=20)
-    conveyor_speed = models.CharField(max_length=100)
+    chemical_waste = models.CharField(max_length=20, blank=True)
+    conveyor_speed = models.CharField(max_length=100, blank=True)
 
     # Test flags
     with_panel_test = models.BooleanField(default=False)
@@ -90,104 +89,102 @@ class FinishingSheet(models.Model):
         return f"{self.finishing_code} - {self.created_at.date}"
 
 
-# class SheetRow(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     sheet = models.ForeignKey(
-#         FinishingSheet, 
-#         on_delete=models.CASCADE, 
-#         related_name='rows'
-#     )
-#     # FKs to template (for provenance only)
-#     step_template = models.ForeignKey(
-#         StepTemplate, 
-#         on_delete=models.SET_NULL, 
-#         null=True, 
-#         blank=True
-#     )
-#     formular_template = models.ForeignKey(
-#         FormularTemplate, 
-#         on_delete=models.SET_NULL, 
-#         null=True, 
-#         blank=True
-#     )
+class SheetRow(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sheet = models.ForeignKey(
+        FinishingSheet, 
+        on_delete=models.CASCADE, 
+        related_name='rows'
+    )
+    # FKs to template (for provenance only)
+    step_template = models.ForeignKey(
+        StepTemplate, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+    formular_template = models.ForeignKey(
+        FormularTemplate, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
     
-#     # Step data
-#     step_num = models.IntegerField()
-#     spot = models.DecimalField(max_digits=4, decimal_places=1)
+    # Step data
+    step_num = models.IntegerField()
+    spot = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
 
-#     stepname_en = models.CharField(max_length=255)
-#     stepname_vi = models.CharField(max_length=255)
-#     stepname_zh_hant = models.CharField(max_length=255)
+    stepname_en = models.CharField(max_length=255)
+    stepname_vi = models.CharField(max_length=255)
+    stepname_zh_hant = models.CharField(max_length=255)
 
-#     viscosity_en = models.TextField(blank=True)
-#     viscosity_vn = models.TextField(blank=True)
-#     viscosity_zh_hant = models.TextField(blank=True)
+    viscosity_en = models.TextField()
+    viscosity_vi = models.TextField()
+    viscosity_zh_hant = models.TextField()
 
-#     spec_en = models.TextField(blank=True)
-#     spec_vn = models.TextField(blank=True)
-#     spec_zh_hant = models.TextField(blank=True)
+    spec_en = models.TextField()
+    spec_vi = models.TextField()
+    spec_zh_hant = models.TextField()
 
-#     hold_time = models.CharField(max_length=50, blank=True)
-#     chemical_code = models.CharField(max_length=100, blank=True)
-#     consumption = models.CharField(max_length=100, blank=True)
+    hold_time = models.CharField(max_length=50)
+    chemical_code = models.CharField(max_length=100)
+    consumption = models.CharField(max_length=100)
     
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='created_sheet_rows')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updated_sheet_rows')
     
-#     class Meta:
-#         db_table = 'production_records'
-#         ordering = ['sheet', 'step_order']
-#         unique_together = ['sheet', 'step_order']
+    class Meta:
+        ordering = ['sheet', 'step_num']
+        unique_together = ['sheet', 'step_num']
     
-#     def __str__(self):
-#         return f"Step {self.step_order}: {self.stepname}"
+    def __str__(self):
+        return f"Step {self.step_num}. {self.stepname_en}"
 
 
-# class RecordMaterial(models.Model):
-#     """Materials used in each production record"""
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     record = models.ForeignKey(
-#         SheetRow, 
-#         on_delete=models.CASCADE, 
-#         related_name='materials'
-#     )
-#     # Store product info locally (synced from data warehouse)
-#     product_code = models.CharField(max_length=100, blank=True)  # material_code from React
-#     product_name = models.CharField(max_length=200, blank=True)  # material_name from React
-    
-#     # Production-specific fields
-#     ratio = models.CharField(max_length=50, blank=True)
-#     qty = models.CharField(max_length=50, blank=True)
-#     unit = models.CharField(max_length=20, blank=True)
-#     check_result = models.TextField(blank=True)
-#     correct_action = models.TextField(blank=True)
-#     te1_signature = models.CharField(max_length=100, blank=True)
-#     customer_signature = models.CharField(max_length=100, blank=True)
-#     order = models.PositiveIntegerField(default=0)
-    
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-    
-#     class Meta:
-#         db_table = 'record_materials'
-#         ordering = ['record', 'order']
-#         indexes = [
-#             models.Index(fields=['product_code']),
-#         ]
-    
-#     def __str__(self):
-#         return f"{self.product_code} - {self.product_name}"
+class RowProduct(models.Model):
+    """Product used in each sheet row"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    row = models.ForeignKey(
+        SheetRow, 
+        on_delete=models.CASCADE, 
+        related_name='products'
+    )
 
-# # Optional: Audit trail model
-# class ProductionAudit(models.Model):
-#     """Track changes to production records"""
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     record = models.ForeignKey(SheetRow, on_delete=models.CASCADE)
-#     action = models.CharField(max_length=50)  # CREATE, UPDATE, DELETE
-#     user = models.CharField(max_length=100, blank=True)
-#     changes = models.JSONField(default=dict)
-#     timestamp = models.DateTimeField(auto_now_add=True)
+    product_code = models.CharField(max_length=100)
+    product_name = models.CharField(max_length=200)
     
-#     class Meta:
-#         db_table = 'production_audits'
-#         ordering = ['-timestamp']
+    # Production-specific fields
+    ratio = models.CharField(max_length=50)
+    qty = models.CharField(max_length=50)
+    unit = models.CharField(max_length=20)
+    check_result = models.CharField(max_length=255)
+    correct_action = models.CharField(max_length=255)
+    te1_signature = models.CharField(max_length=100)
+    customer_signature = models.CharField(max_length=100)
+    order = models.PositiveIntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='created_row_products')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updated_row_products')
+    
+    class Meta:
+        ordering = ['row', 'order']
+    
+    def __str__(self):
+        return self.product_name
+
+
+class ProductionAudit(models.Model):
+    """Track changes to production records"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    row = models.ForeignKey(SheetRow, on_delete=models.CASCADE)
+    action = models.CharField(max_length=50)  # CREATE, UPDATE, DELETE
+    user = models.ForeignKey('user.User', on_delete=models.CASCADE)
+    changes = models.JSONField(default=dict)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']

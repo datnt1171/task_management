@@ -23,7 +23,7 @@ urlpatterns = [
     # path('workflow_engine/', include('workflow_engine.urls')),
     path('api/tasks/', include('task.urls')),
     # path('api/edms/', include('edms.urls')),
-    path('api/', include('sheet.urls')),
+    path('api/sheets/', include('sheet.urls')),
 ]
 
 if settings.DEBUG:
