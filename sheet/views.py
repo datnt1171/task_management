@@ -7,11 +7,13 @@ from .serializers import FinishingSheetSerializer, StepTemplateSerializer, Formu
 class StepTemplateListView(generics.ListAPIView):
     queryset = StepTemplate.objects.all()
     serializer_class = StepTemplateSerializer
+    pagination_class = None
 
 
 class FormularTemplateListView(generics.ListAPIView):
     queryset = FormularTemplate.objects.all()
     serializer_class = FormularTemplateSerializer
+    pagination_class = None
 
 
 class FinishingSheetViewSet(viewsets.ModelViewSet):
