@@ -113,17 +113,19 @@ class SPRReportView(APIView):
                     uu.id as user_id,
                     {translated_column} AS state,
                     wes.state_type AS state_type,
-                    MAX(CASE WHEN td.field_id = 'dd530dff-48a0-4385-9512-273da3210467' THEN td.value END) AS customer_name,
-                    MAX(CASE WHEN td.field_id = 'ad276e61-acac-4125-8f6c-f37ea88c8561' THEN td.value END) AS finishing_code,
-                    MAX(CASE WHEN td.field_id = '24fe8fdd-863d-426c-89db-76fd7b3d7c4f' THEN td.value END) AS customer_color_name,
-                    MAX(CASE WHEN td.field_id = 'c07e4717-5ef7-48f6-b46f-34813a583388' THEN td.value END) AS collection,
-                    MAX(CASE WHEN td.field_id = '0b7ec8a1-8abe-4e3b-9427-ab0b6bd1a6f1' THEN td.value END) AS quantity,
-                    MAX(CASE WHEN td.field_id = 'f01a7bae-80e1-4a6d-b2d5-046af28a5510' THEN td.value END) AS deadline
+                    MAX(CASE WHEN pp2.name = 'Name of customer' THEN td.value END) AS customer_name,
+                    MAX(CASE WHEN pp2.name = 'Finishing code' THEN td.value END) AS finishing_code,
+                    MAX(CASE WHEN pp2.name = 'Customer''s color name' THEN td.value END) AS customer_color_name,
+                    MAX(CASE WHEN pp2.name = 'Collection' THEN td.value END) AS collection,
+                    MAX(CASE WHEN pp2.name = 'Quantity requirement' THEN td.value END) AS quantity,
+                    MAX(CASE WHEN pp2.name = 'Deadline request' THEN td.value END) AS deadline
                 FROM task_task tt
                 JOIN user_user uu ON tt.created_by_id = uu.id
                 JOIN workflow_engine_state wes ON tt.state_id = wes.id
                 LEFT JOIN task_taskdata td ON td.task_id = tt.id
-                WHERE tt.process_id = '8c29ab80-1df7-47d0-b7b1-eb2149c0dee3'
+                join process_process pp on tt.process_id = pp.id
+                join process_processfield pp2 on td.field_id = pp2.id
+                WHERE pp.prefix = 'SP'
                 GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.username, uu.id, wes.state_type, {translated_column}
                 ORDER BY tt.created_at DESC
             """)
