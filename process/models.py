@@ -27,7 +27,7 @@ class Process(models.Model):
     ]
 
     def __str__(self):
-        return f"{self.name}(v{self.version})"
+        return f"{self.prefix}({self.version})"
 
 
 class ProcessUser(models.Model): #Allowed_users
@@ -155,4 +155,4 @@ class ProcessField(models.Model):
             raise ValidationError("Options are only valid for SELECT field type.")
 
     def __str__(self):
-        return f"{self.process.name} - {self.name} ({self.field_type})"
+        return f"{self.process} - {self.name} ({self.field_type})"

@@ -34,7 +34,7 @@ class Task(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.title} ({self.process.name})"
+        return self.title
 
 
 class TaskData(models.Model):

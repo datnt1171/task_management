@@ -60,6 +60,13 @@ class ActionTransitionAdminAdvanced(admin.ModelAdmin):
         )
 
 
+class TransitionAdmin(admin.ModelAdmin):
+    list_display = ('process', 'current_state', 'next_state',)
+    list_filter = ('process',)
+    ordering = ('process',)
+    search_fields = ('current_state',)
+
+
 admin.site.register(State)
-admin.site.register(Transition)
+admin.site.register(Transition, TransitionAdmin)
 admin.site.register(ActionTransition, ActionTransitionAdminAdvanced)

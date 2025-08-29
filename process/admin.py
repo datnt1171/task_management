@@ -47,6 +47,7 @@ class TransitionProcessInline(admin.TabularInline):
     fields = ('current_state', 'next_state',)
     show_change_link = True
 
+
 class ProcessAdmin(TranslationAdmin):
     list_display = ('name', 'version', 'prefix', 'is_active', 'created_at')
     list_filter = ('name', 'is_active')
@@ -62,11 +63,24 @@ class ActionAdmin(TranslationAdmin):
 
 class ProcessFieldAdmin(TranslationAdmin):
     list_display = ('name', 'process', 'field_type', 'order', 'required')
-    list_filter = ('field_type', 'required')
+    list_filter = ('process',)
+    ordering = ('process', 'order',)
+
+
+class ProcessUserAdmin(admin.ModelAdmin):
+    list_display = ('process', 'user')
+    list_filter = ('process',)
+    search_fields = ('user',)
+
+
+class ProcessActionRoleAdmin(admin.ModelAdmin):
+    list_display = ('process', 'action', 'role_type')
+    list_filter = ('process',)
+    ordering = ('process',)
 
 
 admin.site.register(Process, ProcessAdmin)
-admin.site.register(ProcessUser)
+admin.site.register(ProcessUser, ProcessUserAdmin)
 admin.site.register(Action, ActionAdmin)
-admin.site.register(ProcessActionRole)
+admin.site.register(ProcessActionRole, ProcessActionRoleAdmin)
 admin.site.register(ProcessField, ProcessFieldAdmin)
