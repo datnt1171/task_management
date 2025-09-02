@@ -175,7 +175,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 # Validate field type vs provided data
                 uploaded_file = field_data.get('file')
                 field_value = field_data.get('value')
-                print(f"DRF received field_id: {field_id}, value: {field_value}")
                 # # If field type is file but no file provided, and it's required
                 # if field_obj.field_type == 'file' and not uploaded_file and field_obj.required:
                 #     raise serializers.ValidationError(f"File is required for field '{field_obj.name}'")
@@ -192,8 +191,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
                 # If file is included, create TaskFileData
                 if uploaded_file:
-                    print(f"DRF received file for field_id {field_id}: "
-                        f"name={uploaded_file.name}, size={uploaded_file.size}, content_type={uploaded_file.content_type}")
                     TaskFileData.objects.create(
                         task_data=task_data,
                         uploaded_file=uploaded_file,
