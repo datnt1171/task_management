@@ -86,7 +86,7 @@ class FinishingSheet(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.finishing_code} - {self.created_at.date}"
+        return self.finishing_code
 
 
 class SheetRow(models.Model):
