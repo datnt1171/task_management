@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .permissions import HasJWTPermission
+from core.paginations import LargeResultsSetPagination
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -21,7 +22,7 @@ class UserProfileView(RetrieveAPIView):
 class UserListView(ListAPIView):
     serializer_class = UserListSerializer
     permission_classes = [HasJWTPermission]
-    # required_permission = 'read.user.list'
+    pagination_class = LargeResultsSetPagination
     def get_queryset(self):
         return User.objects.active().exclude(
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
