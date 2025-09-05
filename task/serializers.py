@@ -428,7 +428,7 @@ class TaskDetailSerializer(serializers.ModelSerializer):
             'data', 'action_logs', 'available_actions'
         ]
 
-    @extend_schema_field(ActionSerializer)
+    @extend_schema_field(ActionSerializer(many=True))
     def get_available_actions(self, obj):
         user = self.context['request'].user
 
