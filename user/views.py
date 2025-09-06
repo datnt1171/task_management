@@ -20,11 +20,17 @@ class UserProfileView(RetrieveAPIView):
 
 
 class UserListView(ListAPIView):
-    serializer_class = UserListSerializer
+    serializer_class = UserDetailSerializer
     permission_classes = [HasJWTPermission]
     pagination_class = LargeResultsSetPagination
+    filterset_fields = {
+        'department__name': ['exact', 'in'],
+        'role__name': ['exact', 'in'],
+    }
+    search_fields = ['username', 'first_name', 'last_name']
+
     def get_queryset(self):
-        return User.objects.active().exclude(
+        return User.objects.active().select_related('department', 'role', 'supervisor').exclude(
             Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
         )
 
