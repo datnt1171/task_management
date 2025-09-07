@@ -3,11 +3,11 @@ from django.conf import settings
 from rest_framework import serializers
 from .models import Task, TaskData, TaskActionLog, generate_task_title, TaskFileData, TaskPermission, TaskDataHistory
 from process.models import ProcessField, Action, FieldType
-from process.serializers import ProcessFieldSerializer, ProcessListSerializer, ActionSerializer
+from process.serializers import ProcessFieldSerializer, ProcessSerializer, ActionSerializer
 from workflow_engine.models import State, Transition
 from workflow_engine.serializers import StateSerializer
 from .permission_service import PermissionService
-from user.serializers import UserListSerializer
+from user.serializers import UserSerializer
 from user.models import User
 from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
@@ -388,7 +388,7 @@ class TaskDataSerializer(serializers.ModelSerializer):
 
 
 class TaskActionLogSerializer(serializers.ModelSerializer):
-    user = UserListSerializer()
+    user = UserSerializer()
     action = ActionSerializer()
     file = serializers.SerializerMethodField()
 
@@ -414,9 +414,9 @@ class TaskActionLogSerializer(serializers.ModelSerializer):
 
 
 class TaskDetailSerializer(serializers.ModelSerializer):
-    process = ProcessListSerializer()
+    process = ProcessSerializer()
     state = StateSerializer()
-    created_by = UserListSerializer()
+    created_by = UserSerializer()
     data = TaskDataSerializer(many=True)
     action_logs = TaskActionLogSerializer(many=True)
     available_actions = serializers.SerializerMethodField()

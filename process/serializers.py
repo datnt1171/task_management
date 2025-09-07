@@ -15,7 +15,7 @@ class ProcessDetailSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'version', 'fields']
 
 
-class ProcessListSerializer(serializers.ModelSerializer):
+class ProcessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Process
         fields = ['id', 'name', 'description', 'version']

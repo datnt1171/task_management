@@ -1,13 +1,14 @@
-from .serializers import ProcessDetailSerializer, ProcessListSerializer
+from .serializers import ProcessDetailSerializer, ProcessSerializer
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from .models import Process
 
 class ProcessListAPIView(ListAPIView):
-    serializer_class = ProcessListSerializer
-    
+    serializer_class = ProcessSerializer
+    search_fields = ['name']
+
     def get_queryset(self):
         user = self.request.user
-        qs = Process.objects.filter(is_active=True)
+        qs = Process.objects.active()
 
         if user.is_staff:
             return qs
@@ -19,7 +20,7 @@ class ProcessDetailAPIView(RetrieveAPIView):
     
     def get_queryset(self):
         user = self.request.user
-        qs = Process.objects.filter(is_active=True)
+        qs = Process.objects.active()
 
         if user.is_staff:
             return qs

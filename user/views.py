@@ -1,11 +1,10 @@
 from .models import User
-from .serializers import UserDetailSerializer, UserListSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer
+from .serializers import UserDetailSerializer, UserSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer
 from django.db.models import Q
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .permissions import HasJWTPermission
 from core.paginations import LargeResultsSetPagination
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -21,7 +20,6 @@ class UserProfileView(RetrieveAPIView):
 
 class UserListView(ListAPIView):
     serializer_class = UserDetailSerializer
-    permission_classes = [HasJWTPermission]
     pagination_class = LargeResultsSetPagination
     filterset_fields = {
         'department__name': ['exact', 'in'],
@@ -39,7 +37,7 @@ class UserRetrieveView(RetrieveAPIView):
     queryset = User.objects.active().exclude(
         Q(role__name__iexact='admin') & Q(department__name__iexact='admin')
     )
-    serializer_class = UserListSerializer
+    serializer_class = UserSerializer
 
 
 class ChangePasswordView(UpdateAPIView):

@@ -15,7 +15,7 @@ class Process(models.Model):
     description = models.TextField(blank=True, null=True)
     version = models.CharField(max_length=255)
     prefix = models.CharField(max_length=10)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -24,7 +24,8 @@ class Process(models.Model):
     class Meta:
         constraints = [
         models.UniqueConstraint(fields=['name', 'version'], name='unique_process_version')
-    ]
+        ]
+        ordering = ['created_at']
 
     def __str__(self):
         return f"{self.prefix}({self.version})"
@@ -138,9 +139,9 @@ class ProcessField(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=255, blank=True)
-    field_type = models.CharField(max_length=255, choices=FieldType.choices, default=FieldType.TEXT)
+    field_type = models.CharField(max_length=255, choices=FieldType.choices)
     order = models.PositiveSmallIntegerField()
-    required = models.BooleanField(default=False)
+    required = models.BooleanField()
     options = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

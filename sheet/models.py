@@ -78,9 +78,9 @@ class FinishingSheet(models.Model):
     conveyor_speed = models.CharField(max_length=100)
 
     # Test flags
-    with_panel_test = models.BooleanField(default=False)
-    testing = models.BooleanField(default=False)
-    chemical_yellowing = models.BooleanField(default=False)
+    with_panel_test = models.BooleanField()
+    testing = models.BooleanField()
+    chemical_yellowing = models.BooleanField()
     
     class Meta:
         ordering = ['-created_at']
@@ -163,7 +163,7 @@ class RowProduct(models.Model):
     correct_action = models.CharField(max_length=255, blank=True)
     te1_signature = models.CharField(max_length=100, blank=True)
     customer_signature = models.CharField(max_length=100, blank=True)
-    order = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField()
     
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='created_row_products')
