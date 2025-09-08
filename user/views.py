@@ -5,7 +5,6 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from core.paginations import LargeResultsSetPagination
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -20,7 +19,6 @@ class UserProfileView(RetrieveAPIView):
 
 class UserListView(ListAPIView):
     serializer_class = UserDetailSerializer
-    pagination_class = LargeResultsSetPagination
     filterset_fields = {
         'department__name': ['exact', 'in'],
         'role__name': ['exact', 'in'],
