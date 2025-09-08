@@ -18,6 +18,10 @@ from rest_framework.exceptions import PermissionDenied
 
 class SentTasksAPIView(generics.ListAPIView):
     serializer_class = SentTaskSerializer
+    filterset_fields = {
+        'state__state_type': ['exact', 'in']
+    }
+    search_fields = ['title']
 
     def get_queryset(self):
         # Add prefetching for better performance in serializers
@@ -33,6 +37,10 @@ class SentTasksAPIView(generics.ListAPIView):
 
 class ReceivedTasksAPIView(generics.ListAPIView):
     serializer_class = ReceivedTaskSerializer
+    filterset_fields = {
+        'state__state_type': ['exact', 'in']
+    }
+    search_fields = ['title']
 
     def get_queryset(self):
         user = self.request.user
