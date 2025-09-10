@@ -6,7 +6,8 @@ from rest_framework.views import APIView
 from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
-                          SPRReportRowSerializer, TaskDataSerializer)
+                          SPRReportRowSerializer, TaskDataSerializer, 
+                          TaskDataDetailSerializer, TaskActionDetailSerializer)
 from drf_spectacular.utils import extend_schema
 from django.utils.translation import get_language
 from user.permissions import HasJWTPermission
@@ -179,3 +180,118 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         
         # Return fresh data after update
         return Response(self.get_serializer(instance).data)
+    
+
+class TaskDataDetailView(APIView):
+    
+    @extend_schema(
+        responses=TaskDataDetailSerializer(many=True),
+    )
+    def get(self, request):
+        lang = get_language()  # e.g. 'vi', 'en'
+        if lang == 'zh-hant':
+            lang = 'zh_hant'
+        wes_name = f"wes.name_{lang}"  # Use modeltranslation's convention
+
+        wes_names = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
+        if wes_name not in wes_names:
+            wes_name = "wes.name"
+
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT 
+                    tt.id task_id,
+                    tt.title,
+                    tt.created_at::date created_at,
+                    uu.username AS created_by,
+                    {wes_name} AS state,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Finishing code' THEN ttd.value END) AS finishing_code,
+                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer,
+                    MAX(CASE WHEN ppf.name = 'Customer''s color name' THEN ttd.value END) AS customer_color_name,
+                    MAX(CASE WHEN ppf.name = 'Type of substrate' THEN ttd.value END) AS type_of_substrate,
+                    MAX(CASE WHEN ppf.name = 'Collection' THEN ttd.value END) AS collection,
+                    MAX(CASE WHEN ppf.name = 'Sample Type' THEN ttd.value END) AS sample_type,
+                    MAX(CASE WHEN ppf.name = 'Quantity requirement' THEN ttd.value END) AS quantity_requirement,
+                    MAX(CASE WHEN ppf.name = 'Requester name' THEN ttd.value END) AS requester_name,
+                    MAX(CASE WHEN ppf.name = 'Deadline request' THEN ttd.value END) AS deadline_request,
+                    MAX(CASE WHEN ppf.name = 'Sampler' THEN uu_sampler.username END) AS sampler,
+                    MAX(CASE WHEN ppf.name = 'Type of paint' THEN ttd.value END) AS type_of_paint,
+                    MAX(CASE WHEN ppf.name = 'Finishing surface grain' THEN ttd.value END) AS finishing_surface_grain,       
+                    MAX(CASE WHEN ppf.name = 'Sheen level' THEN ttd.value END) AS sheen_level,       
+                    MAX(CASE WHEN ppf.name = 'Substrate surface treatmeant' THEN ttd.value END) AS substrate_surface_treatment,
+                    MAX(CASE WHEN ppf.name = 'Panel category' THEN ttd.value END) AS panel_category,
+                    MAX(CASE WHEN ppf.name = 'Purpose of usage' THEN ttd.value END) AS purpose_of_usage,
+                    MAX(CASE WHEN ppf.name = 'Additional detail' THEN ttd.value END) AS additional_detail
+                FROM task_task tt
+                    JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                    JOIN user_user uu ON tt.created_by_id = uu.id
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    LEFT JOIN user_user uu_sampler ON ttd.value = uu_sampler.id::text AND ppf.name = 'Sampler'
+                WHERE tt.title LIKE 'SP%' 
+                    AND tt.created_at >= '2025-08-29'
+                GROUP BY tt.id, tt.created_at::date, tt.title, uu.username, {wes_name}
+                order by tt.title;
+            """)
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    
+
+class TaskActionDetailView(APIView):
+    
+    @extend_schema(
+        responses=TaskActionDetailSerializer(many=True),
+    )
+    def get(self, request):
+        lang = get_language()  # e.g. 'vi', 'en'
+        if lang == 'zh-hant':
+            lang = 'zh_hant'
+        wes_name = f"wes.name_{lang}"  # Use modeltranslation's convention
+        pa_name = f"pa.name_{lang}"
+
+
+        wes_names = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
+        if wes_name not in wes_names:
+            wes_name = "wes.name"
+
+        pa_names = {'pa.name_en', 'pa.name_vi','pa.name_zh_hant'}
+        if pa_name not in pa_names:
+            pa_name = "pa.name"
+
+
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT 
+                    tt.id as task_id,
+                    tt.title, 
+                    tt.created_at, 
+                    uu.username AS created_by,
+                    {wes_name} AS state,
+                    {pa_name} AS action, 
+                    uu2.username AS action_created_by, 
+                    ttal.created_at AS action_created_at, 
+                    ttal.comment,
+                    CASE 
+                        WHEN LAG(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) IS NULL 
+                        THEN ttal.created_at - tt.created_at
+                        WHEN LEAD(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) IS NULL 
+                        THEN NOW() - ttal.created_at
+                        ELSE LEAD(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) - ttal.created_at
+                    END AS duration
+                FROM task_task tt
+                    JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                    JOIN user_user uu ON tt.created_by_id = uu.id
+                    JOIN task_taskactionlog ttal ON tt.id = ttal.task_id
+                    JOIN process_action pa ON ttal.action_id = pa.id
+                    JOIN user_user uu2 ON ttal.user_id = uu2.id
+                WHERE tt.title LIKE 'SP%'
+                    AND tt.created_at >= '2025-08-29'
+                ORDER BY tt.title, action_created_at;
+            """)
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)

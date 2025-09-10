@@ -8,6 +8,8 @@ urlpatterns = [
     path('<uuid:pk>/action/', views.TaskActionView.as_view(), name='task-action'),
     path('<uuid:pk>/', views.TaskDetailView.as_view(), name='task-detail'),
     path('<uuid:task_id>/data/<uuid:field_id>/', views.TaskDataRetrieveUpdateView.as_view(), name='task-data-detail'),
-    path('spr-report/', views.SPRReportView.as_view(), name='spr-report')
+    path('spr-report/', views.SPRReportView.as_view(), name='spr-report'),
+    path('data-detail/', views.TaskDataDetailView.as_view(), name='data-detail'),
+    path('action-detail/', views.TaskActionDetailView.as_view(), name='action-detail')
 ]
 
