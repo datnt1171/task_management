@@ -13,6 +13,7 @@ class StateType(models.TextChoices):
     DENIED = 'denied', 'Denied'
     CANCELED = 'canceled', 'Canceled'
     CLOSED = 'closed', 'Closed'
+    STATIC = 'static', 'Static'
 
 
 class State(models.Model):

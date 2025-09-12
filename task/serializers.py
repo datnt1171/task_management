@@ -155,7 +155,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         ).distinct().first()
 
         if not start_state:
-            raise serializers.ValidationError({"non_field_errors": ["No start state is defined for this process."]})
+            # raise serializers.ValidationError({"non_field_errors": ["No start state is defined for this process."]})
+            start_state = State.objects.get(state_type='static')
 
         with transaction.atomic():
             task = Task.objects.create(
