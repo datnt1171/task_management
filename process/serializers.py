@@ -1,10 +1,18 @@
 from rest_framework import serializers
-from .models import Process, ProcessField, Action
+from .models import Process, ProcessField, Action, FieldCondition
+
+class FieldConditionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FieldCondition
+        fields = ['id', 'condition_field', 'operator', 'value']
+
 
 class ProcessFieldSerializer(serializers.ModelSerializer):
+    conditions = FieldConditionSerializer(many=True, read_only=True)
+
     class Meta:
         model = ProcessField
-        fields = ['id', 'name', 'description', 'field_type', 'order', 'required', 'options']
+        fields = ['id', 'name', 'description', 'field_type', 'order', 'required', 'options', 'conditions']
 
 
 class ProcessDetailSerializer(serializers.ModelSerializer):

@@ -126,7 +126,9 @@ class FieldType(models.TextChoices):
     TEXT = 'text', 'Text'
     NUMBER = 'number', 'Number'
     DATE = 'date', 'Date'
+    TIME = 'time', 'Time'
     SELECT = 'select', 'Select'
+    MULTISELECT = 'multiselect', 'Multi Select'
     FILE = 'file', 'File'
     JSON = 'json', 'Table'
     ASSIGNEE = 'assignee', 'Assignee'
@@ -152,8 +154,88 @@ class ProcessField(models.Model):
         ordering = ['order']
     
     def clean(self):
-        if self.field_type != FieldType.SELECT and self.options:
+        if self.field_type not in (FieldType.SELECT, FieldType.MULTISELECT) and self.options:
             raise ValidationError("Options are only valid for SELECT field type.")
 
     def __str__(self):
         return f"{self.process} - {self.name} ({self.field_type})"
+
+
+class ConditionOperator(models.TextChoices):
+    EXACT = 'exact', 'Exact'
+    NOT_EXACT = 'not_exact', 'Not Exact'
+    CONTAINS = 'contains', 'Contains'
+    NOT_CONTAINS = 'not_contains', 'Not Contains'
+    IN = 'in', 'In'
+    NOT_IN = 'not_in', 'Not In'
+    GREATER_THAN = 'gt', 'Greater Than'
+    LESS_THAN = 'lt', 'Less Than'
+    GREATER_EQUAL = 'gte', 'Greater Than or Equal'
+    LESS_EQUAL = 'lte', 'Less Than or Equal'
+    IS_EMPTY = 'is_empty', 'Is Empty'
+    IS_NOT_EMPTY = 'is_not_empty', 'Is Not Empty'
+    WEEKDAY = 'weekday', 'Week day'
+
+
+class FieldCondition(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    field = models.ForeignKey(ProcessField, on_delete=models.CASCADE, related_name="conditions",
+                             help_text="The field whose visibility this condition controls")
+    condition_field = models.ForeignKey(ProcessField, on_delete=models.CASCADE,
+                                        blank=True,
+                                        null=True,
+                                        related_name="dependent_conditions",
+                                        help_text="The field to check the value of")
+    operator = models.CharField(max_length=50, choices=ConditionOperator.choices)
+    value = models.JSONField(help_text="Value(s) to compare against")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = [('field', 'condition_field', 'operator')]
+        indexes = [
+            models.Index(fields=['field', 'condition_field']),
+        ]
+    
+    def clean(self):
+        # Prevent self-referencing conditions
+        if self.condition_field == self.field:
+            raise ValidationError("A field cannot depend on itself.")
+        
+        # Validate condition_field belongs to same process
+        if self.condition_field and self.field and self.condition_field.process != self.field.process:
+            raise ValidationError("Condition field must belong to the same process.")
+        
+        # Validate condition order (dependency field should come before dependent field)
+        if (self.condition_field and self.field and 
+            self.condition_field.order >= self.field.order):
+            raise ValidationError("Condition field must come before the dependent field in order.")
+        
+        # Validate value based on operator
+        self._validate_condition_value()
+    
+    def _validate_condition_value(self):
+        """Validate condition value based on the operator"""
+        operator = self.operator
+        value = self.value
+        
+        if operator in [ConditionOperator.IS_EMPTY, ConditionOperator.IS_NOT_EMPTY]:
+            if value is not None:
+                raise ValidationError(f"Value should be null for {operator} operator")
+        
+        elif operator in [ConditionOperator.IN, ConditionOperator.NOT_IN]:
+            if not isinstance(value, list):
+                raise ValidationError(f"Value must be a list for {operator} operator")
+        
+        elif operator in [ConditionOperator.GREATER_THAN, ConditionOperator.LESS_THAN, 
+                         ConditionOperator.GREATER_EQUAL, ConditionOperator.LESS_EQUAL]:
+            if not isinstance(value, (int, float)):
+                raise ValidationError(f"Value must be a number for {operator} operator")
+        
+        else:  # exact, not_exact, contains, not_contains
+            if value is None:
+                raise ValidationError(f"Value is required for {operator} operator")
+
+
+    def __str__(self):
+        return f"{self.field.name} {self.operator} {self.value}"

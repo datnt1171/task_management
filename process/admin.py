@@ -1,6 +1,6 @@
 from django.contrib import admin
 from modeltranslation.admin import TranslationAdmin, TranslationTabularInline
-from .models import Process, ProcessUser, Action, ProcessActionRole, ProcessField
+from .models import Process, ProcessUser, Action, ProcessActionRole, ProcessField, FieldCondition
 from workflow_engine.models import Transition
 
 
@@ -61,10 +61,54 @@ class ActionAdmin(TranslationAdmin):
     list_filter = ('action_type', 'process')
 
 
+class FieldConditionInline(admin.TabularInline):
+    model = FieldCondition
+    extra = 0
+    fk_name = 'field'
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "condition_field":
+            # Get the parent ProcessField from the URL
+            if hasattr(self, 'parent_obj') and self.parent_obj:
+                # Filter by the parent field's process AND smaller order
+                kwargs["queryset"] = ProcessField.objects.filter(
+                    process=self.parent_obj.process,
+                    order__lt=self.parent_obj.order
+                )
+            else:
+                # Try to get from URL path
+                import re
+                match = re.search(r'/processfield/([^/]+)/change/', request.path)
+                if match:
+                    try:
+                        parent_field = ProcessField.objects.get(id=match.group(1))
+                        kwargs["queryset"] = ProcessField.objects.filter(
+                            process=parent_field.process,
+                            order__lt=parent_field.order
+                        )
+                    except ProcessField.DoesNotExist:
+                        kwargs["queryset"] = ProcessField.objects.none()
+                else:
+                    kwargs["queryset"] = ProcessField.objects.none()
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def get_formset(self, request, obj=None, **kwargs):
+        # Store the parent object for use in formfield_for_foreignkey
+        self.parent_obj = obj
+        return super().get_formset(request, obj, **kwargs)
+
+
+class FieldConditionAdmin(admin.ModelAdmin):
+    list_display = ('field', 'condition_field', 'operator', 'value')
+    list_filter = ('operator', 'field__process')
+
+
 class ProcessFieldAdmin(TranslationAdmin):
     list_display = ('name', 'process', 'field_type', 'order', 'required')
     list_filter = ('process',)
     ordering = ('process', 'order',)
+    inlines = [FieldConditionInline]
 
 
 class ProcessUserAdmin(admin.ModelAdmin):
@@ -84,3 +128,4 @@ admin.site.register(ProcessUser, ProcessUserAdmin)
 admin.site.register(Action, ActionAdmin)
 admin.site.register(ProcessActionRole, ProcessActionRoleAdmin)
 admin.site.register(ProcessField, ProcessFieldAdmin)
+admin.site.register(FieldCondition, FieldConditionAdmin)
