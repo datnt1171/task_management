@@ -205,6 +205,7 @@ class TaskDataDetailView(APIView):
                     tt.created_at::date created_at,
                     uu.username AS created_by,
                     {wes_name} AS state,
+                    wes.state_type AS state_type,
                     MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
                     MAX(CASE WHEN ppf.name = 'Finishing code' THEN ttd.value END) AS finishing_code,
                     MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer,
@@ -231,7 +232,7 @@ class TaskDataDetailView(APIView):
                     LEFT JOIN user_user uu_sampler ON ttd.value = uu_sampler.id::text AND ppf.name = 'Sampler'
                 WHERE tt.title LIKE 'SP%' 
                     AND tt.created_at >= '2025-08-29'
-                GROUP BY tt.id, tt.created_at::date, tt.title, uu.username, {wes_name}
+                GROUP BY tt.id, tt.created_at::date, tt.title, uu.username, {wes_name}, wes.state_type
                 order by tt.title;
             """)
             columns = [col[0] for col in cursor.description]
@@ -270,7 +271,9 @@ class TaskActionDetailView(APIView):
                     tt.created_at, 
                     uu.username AS created_by,
                     {wes_name} AS state,
+                    wes.state_type AS state_type,
                     {pa_name} AS action, 
+                    pa.action_type as action_type,
                     uu2.username AS action_created_by, 
                     ttal.created_at AS action_created_at, 
                     ttal.comment,
@@ -278,6 +281,7 @@ class TaskActionDetailView(APIView):
                         WHEN LAG(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) IS NULL 
                         THEN ttal.created_at - tt.created_at
                         WHEN LEAD(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) IS NULL 
+                            AND pa.action_type != 'close'
                         THEN NOW() - ttal.created_at
                         ELSE LEAD(ttal.created_at) OVER (PARTITION BY tt.id ORDER BY ttal.created_at) - ttal.created_at
                     END AS duration
