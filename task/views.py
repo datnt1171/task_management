@@ -220,7 +220,7 @@ class TaskDataDetailView(APIView):
                     MAX(CASE WHEN ppf.name = 'Type of paint' THEN ttd.value END) AS type_of_paint,
                     MAX(CASE WHEN ppf.name = 'Finishing surface grain' THEN ttd.value END) AS finishing_surface_grain,       
                     MAX(CASE WHEN ppf.name = 'Sheen level' THEN ttd.value END) AS sheen_level,       
-                    MAX(CASE WHEN ppf.name = 'Substrate surface treatmeant' THEN ttd.value END) AS substrate_surface_treatment,
+                    MAX(CASE WHEN ppf.name = 'Substrate surface treatment' THEN ttd.value END) AS substrate_surface_treatment,
                     MAX(CASE WHEN ppf.name = 'Panel category' THEN ttd.value END) AS panel_category,
                     MAX(CASE WHEN ppf.name = 'Purpose of usage' THEN ttd.value END) AS purpose_of_usage,
                     MAX(CASE WHEN ppf.name = 'Additional detail' THEN ttd.value END) AS additional_detail
