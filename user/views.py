@@ -72,7 +72,13 @@ class UserFactoryOnsiteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_update(self, request):
         """Update multiple assignments at once"""
-        assignments = request.data.get('assignments', [])
+        assignments = request.data
+        
+        if not isinstance(assignments, list):
+            return Response(
+                {'error': 'Expected an array of assignments'}, 
+                status=400
+            )
         
         for assignment_data in assignments:
             user_id = assignment_data.get('user')

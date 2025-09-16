@@ -12,6 +12,7 @@ import random
 def run():
     """
     Generate sample UserFactoryOnsite data
+    Constraint: unique_user_onsite (user, year, month) - one factory per user per month
     """
     
     # Sample data
@@ -21,6 +22,7 @@ def run():
     months = [1, 2, 3]
     
     print("🌱 Starting to seed UserFactoryOnsite data...")
+    print("📋 Constraint: Each user can have only ONE factory per month")
     
     try:
         with transaction.atomic():
@@ -52,36 +54,47 @@ def run():
             for user in existing_users:
                 print(f"\n👤 Processing user: {user.username}")
                 
-                # Randomly assign factories and months
-                user_factories = random.sample(factories, random.randint(1, 3))  # 1-3 factories per user
+                # Randomly select which months this user will be onsite
+                user_months = random.sample(months, random.randint(1, len(months)))  # 1-3 months per user
                 
-                for factory in user_factories:
-                    user_months = random.sample(months, random.randint(1, len(months)))  # 1-3 months per factory
+                for month in user_months:
+                    # Randomly assign ONE factory for this user-month combination
+                    selected_factory = random.choice(factories)
                     
-                    for month in user_months:
-                        onsite_record, created = UserFactoryOnsite.objects.get_or_create(
-                            user=user,
-                            factory=factory,
-                            year=year,
-                            month=month
-                        )
-                        
-                        if created:
-                            print(f"   ✅ Created: {factory} - Month {month}")
-                            created_count += 1
-                        else:
-                            print(f"   ⚠️  Already exists: {factory} - Month {month}")
+                    onsite_record, created = UserFactoryOnsite.objects.get_or_create(
+                        user=user,
+                        year=year,
+                        month=month,
+                        defaults={'factory': selected_factory}  # Only set factory if creating new record
+                    )
+                    
+                    if created:
+                        print(f"   ✅ Created: Month {month} -> Factory {selected_factory}")
+                        created_count += 1
+                    else:
+                        print(f"   ⚠️  Already exists: Month {month} -> Factory {onsite_record.factory}")
             
             print(f"\n🎉 Successfully created {created_count} UserFactoryOnsite records!")
             print(f"📊 Summary:")
             print(f"   Users processed: {len(existing_users)}")
             print(f"   Year: {year}")
-            print(f"   Factories: {factories}")
-            print(f"   Months: {months}")
+            print(f"   Available factories: {factories}")
+            print(f"   Available months: {months}")
             
-            # Display final count
+            # Display final count and breakdown
             total_records = UserFactoryOnsite.objects.filter(year=year).count()
             print(f"   Total onsite records for {year}: {total_records}")
+            
+            # Show distribution by month
+            print(f"\n📈 Distribution by month:")
+            for month in months:
+                month_count = UserFactoryOnsite.objects.filter(year=year, month=month).count()
+                print(f"   Month {month}: {month_count} users onsite")
+            
+            # Show which factories were assigned
+            print(f"\n🏭 Factory assignments:")
+            for record in UserFactoryOnsite.objects.filter(year=year).select_related('user').order_by('user__username', 'month'):
+                print(f"   {record.user.username} - Month {record.month}: Factory {record.factory}")
             
     except Exception as e:
         print(f"❌ Error occurred: {str(e)}")
