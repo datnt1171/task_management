@@ -1,10 +1,11 @@
-from .models import User
-from .serializers import UserDetailSerializer, UserSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer
+from .models import User, UserFactoryOnsite
+from .serializers import UserDetailSerializer, UserSerializer, ChangePasswordSerializer, CustomTokenObtainPairSerializer, UserFactoryOnsiteSerializer
 from django.db.models import Q
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.decorators import action
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -57,3 +58,42 @@ class ChangePasswordView(UpdateAPIView):
             {"message": "Password changed successfully"}, 
             status=status.HTTP_200_OK
         )
+    
+
+class UserFactoryOnsiteViewSet(viewsets.ModelViewSet):
+    queryset = UserFactoryOnsite.objects.all()
+    serializer_class = UserFactoryOnsiteSerializer
+    
+    filterset_fields = ['factory', 'year', 'month', 'user']
+    ordering_fields = ['factory', 'year', 'month', 'user']
+    ordering = ['-year', '-month']
+    pagination_class = None
+
+    @action(detail=False, methods=['post'])
+    def bulk_update(self, request):
+        """Update multiple assignments at once"""
+        assignments = request.data.get('assignments', [])
+        
+        for assignment_data in assignments:
+            user_id = assignment_data.get('user')
+            year = assignment_data.get('year')
+            month = assignment_data.get('month')
+            factory = assignment_data.get('factory')
+            
+            if factory:
+                # Create or update
+                obj, created = UserFactoryOnsite.objects.update_or_create(
+                    user_id=user_id,
+                    year=year,
+                    month=month,
+                    defaults={'factory': factory}
+                )
+            else:
+                # Delete if factory is empty
+                UserFactoryOnsite.objects.filter(
+                    user_id=user_id,
+                    year=year,
+                    month=month
+                ).delete()
+        
+        return Response({'status': 'success'})

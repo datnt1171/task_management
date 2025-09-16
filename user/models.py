@@ -114,3 +114,21 @@ class User(AbstractUser):
         if self.first_name and self.last_name:
             return f"{self.last_name} {self.first_name} ({self.username})"
         return self.username
+    
+
+class UserFactoryOnsite(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    factory = models.CharField(max_length=10)
+    year = models.IntegerField()
+    month = models.IntegerField(choices=[(i, str(i)) for i in range(1, 13)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)  
+
+    class Meta:
+        constraints = [
+        models.UniqueConstraint(fields=['user', 'year', 'month'], name='unique_user_onsite')
+    ]
+        
+    def __str__(self):
+        return f"{self.user.username} - {self.factory} ({self.month}/{self.year})"

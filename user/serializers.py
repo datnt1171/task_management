@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Role, Department, RolePermission
+from .models import User, Role, Department, RolePermission, UserFactoryOnsite
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -113,4 +113,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 permissions.append(entry)
         
         return permissions
+    
+
+class UserFactoryOnsiteSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = UserFactoryOnsite
+        fields = ['id', 'user', 'factory', 'year', 'month']
         
