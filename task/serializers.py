@@ -20,10 +20,13 @@ class SentTaskSerializer(serializers.ModelSerializer):
     recipient = serializers.SerializerMethodField()
     state = serializers.CharField(source='state.name')
     state_type = serializers.CharField(source='state.state_type')
+    finishing_code = serializers.SerializerMethodField()
+    customer_color_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'recipient']
+        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 
+                 'recipient', 'finishing_code', 'customer_color_name']
 
     def get_recipient(self, obj) -> str | None:
         """
@@ -39,8 +42,27 @@ class SentTaskSerializer(serializers.ModelSerializer):
         # Return first available user
         if permissions:
             return permissions[0].user.username
-        
         return None
+
+    def get_finishing_code(self, obj) -> str | None:
+        """Get finishing code for SP tasks only."""
+        if not obj.title.startswith('SP'):
+            return None
+        try:
+            task_data = obj.data.select_related('field').get(field__name='Finishing code')
+            return task_data.value
+        except:
+            return None
+
+    def get_customer_color_name(self, obj) -> str | None:
+        """Get customer color name for SP tasks only."""
+        if not obj.title.startswith('SP'):
+            return None
+        try:
+            task_data = obj.data.select_related('field').get(field__name="Customer's color name")
+            return task_data.value
+        except:
+            return None
 
 
 class ReceivedTaskSerializer(serializers.ModelSerializer):
@@ -49,10 +71,13 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
     state = serializers.CharField(source='state.name')
     state_type = serializers.CharField(source='state.state_type')
     action = serializers.SerializerMethodField()
+    finishing_code = serializers.SerializerMethodField()
+    customer_color_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action']
+        fields = ['id', 'title', 'process', 'state', 'state_type', 'created_at', 'created_by', 'action',
+                  'finishing_code', 'customer_color_name']
 
     def get_action(self, obj) -> str | None:
         """
@@ -69,6 +94,26 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
         ).select_related('action').first()
         
         return permission.action.name if permission else None
+    
+    def get_finishing_code(self, obj) -> str | None:
+        """Get finishing code for SP tasks only."""
+        if not obj.title.startswith('SP'):
+            return None
+        try:
+            task_data = obj.data.select_related('field').get(field__name='Finishing code')
+            return task_data.value
+        except:
+            return None
+
+    def get_customer_color_name(self, obj) -> str | None:
+        """Get customer color name for SP tasks only."""
+        if not obj.title.startswith('SP'):
+            return None
+        try:
+            task_data = obj.data.select_related('field').get(field__name="Customer's color name")
+            return task_data.value
+        except:
+            return None
      
         
 class TaskDataInputSerializer(serializers.Serializer):
