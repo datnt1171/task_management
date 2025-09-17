@@ -9,7 +9,7 @@ from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           SPRReportRowSerializer, TaskDataSerializer, 
                           TaskDataDetailSerializer, TaskActionDetailSerializer)
 from drf_spectacular.utils import extend_schema
-from django.utils.translation import get_language
+from core.translation import get_localized_column
 from user.permissions import HasJWTPermission
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
@@ -103,14 +103,7 @@ class SPRReportView(APIView):
         description="Returns a report of tasks for a specific process using raw SQL."
     )
     def get(self, request):
-        lang = get_language()  # e.g. 'vi', 'en'
-        if lang == 'zh-hant':
-            lang = 'zh_hant'
-        translated_column = f"wes.name_{lang}"  # Use modeltranslation's convention
-
-        allowed_columns = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
-        if translated_column not in allowed_columns:
-            translated_column = "wes.name"
+        translated_column = get_localized_column('wes.name')
 
         with connection.cursor() as cursor:
             cursor.execute(f"""
@@ -188,14 +181,7 @@ class TaskDataDetailView(APIView):
         responses=TaskDataDetailSerializer(many=True),
     )
     def get(self, request):
-        lang = get_language()  # e.g. 'vi', 'en'
-        if lang == 'zh-hant':
-            lang = 'zh_hant'
-        wes_name = f"wes.name_{lang}"  # Use modeltranslation's convention
-
-        wes_names = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
-        if wes_name not in wes_names:
-            wes_name = "wes.name"
+        wes_name = get_localized_column('wes.name')
 
         with connection.cursor() as cursor:
             cursor.execute(f"""
@@ -247,21 +233,8 @@ class TaskActionDetailView(APIView):
         responses=TaskActionDetailSerializer(many=True),
     )
     def get(self, request):
-        lang = get_language()  # e.g. 'vi', 'en'
-        if lang == 'zh-hant':
-            lang = 'zh_hant'
-        wes_name = f"wes.name_{lang}"  # Use modeltranslation's convention
-        pa_name = f"pa.name_{lang}"
-
-
-        wes_names = {'wes.name_en', 'wes.name_vi','wes.name_zh_hant'}
-        if wes_name not in wes_names:
-            wes_name = "wes.name"
-
-        pa_names = {'pa.name_en', 'pa.name_vi','pa.name_zh_hant'}
-        if pa_name not in pa_names:
-            pa_name = "pa.name"
-
+        wes_name = get_localized_column('wes.name')
+        pa_name = get_localized_column('pa.name')
 
         with connection.cursor() as cursor:
             cursor.execute(f"""
