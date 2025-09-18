@@ -92,7 +92,7 @@ class TaskDetailView(generics.RetrieveAPIView):
             Prefetch('action_logs', queryset=TaskActionLog.objects.select_related('user', 'action')),
             Prefetch('data', queryset=TaskData.objects.select_related('field').order_by('field__order'))
         )
-        
+
         
 class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = TaskDataSerializer
@@ -140,8 +140,15 @@ class TaskDataDetailView(APIView):
     def get(self, request):
         wes_name = get_localized_column('wes.name')
 
-        with connection.cursor() as cursor:
-            cursor.execute(f"""
+        # Parse and validate query parameters
+        state_type__in = request.query_params.get('state_type__in')
+        name_of_customer__in = request.query_params.get('name_of_customer__in')
+        retailer__in = request.query_params.get('retailer__in')
+        sampler__in = request.query_params.get('sampler__in')
+
+        # Build main CTE query
+        main_cte = f"""
+            task_data AS (
                 SELECT 
                     tt.id task_id,
                     tt.title,
@@ -173,15 +180,65 @@ class TaskDataDetailView(APIView):
                     JOIN task_taskdata ttd ON tt.id = ttd.task_id
                     JOIN process_processfield ppf ON ttd.field_id = ppf.id
                     LEFT JOIN user_user uu_sampler ON ttd.value = uu_sampler.id::text AND ppf.name = 'Sampler'
-                WHERE tt.title LIKE 'SP%' 
+                WHERE tt.title LIKE 'SP%%' 
                     AND tt.created_at >= '2025-08-29'
                 GROUP BY tt.id, tt.created_at::date, tt.title, uu.username, {wes_name}, wes.state_type
-                order by tt.title;
-            """)
-            columns = [col[0] for col in cursor.description]
-            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            )
+        """
 
-        return Response(results, status=status.HTTP_200_OK)
+        # Build parameterized filter conditions
+        filter_conditions = []
+        query_params = []
+
+        if state_type__in:
+            states = [s.strip() for s in state_type__in.split(',') if s.strip()]
+            if states:
+                # Create placeholders for each state
+                placeholders = ','.join(['%s'] * len(states))
+                filter_conditions.append(f"state_type IN ({placeholders})")
+                query_params.extend(states)
+
+        if name_of_customer__in:
+            customers = [s.strip() for s in name_of_customer__in.split(',') if s.strip()]
+            if customers:
+                placeholders = ','.join(['%s'] * len(customers))
+                filter_conditions.append(f"name_of_customer IN ({placeholders})")
+                query_params.extend(customers)
+
+        if retailer__in:
+            retailers = [s.strip() for s in retailer__in.split(',') if s.strip()]
+            if retailers:
+                placeholders = ','.join(['%s'] * len(retailers))
+                filter_conditions.append(f"retailer IN ({placeholders})")
+                query_params.extend(retailers)
+
+        if sampler__in:
+            samplers = [s.strip() for s in sampler__in.split(',') if s.strip()]
+            if samplers:
+                placeholders = ','.join(['%s'] * len(samplers))
+                filter_conditions.append(f"sampler IN ({placeholders})")
+                query_params.extend(samplers)
+
+        # Build final WHERE clause
+        where_clause = ""
+        if filter_conditions:
+            where_clause = "WHERE " + " AND ".join(filter_conditions)
+
+        # Complete query with CTE
+        query = f"""
+            WITH {main_cte}
+            SELECT * FROM task_data
+            {where_clause}
+            ORDER BY title
+        """
+
+        with connection.cursor() as cursor:                
+            cursor.execute(query, query_params)  # Pass parameters separately
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            
+            results = [dict(zip(columns, row)) for row in rows]
+            return Response(results, status=status.HTTP_200_OK)
     
 
 class TaskActionDetailView(APIView):
