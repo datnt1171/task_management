@@ -500,22 +500,6 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         return permitted
 
 
-class SPRReportRowSerializer(serializers.Serializer):
-    task_id = serializers.UUIDField()
-    title = serializers.CharField()
-    created_at = serializers.DateTimeField()
-    created_by = serializers.CharField()
-    user_id = serializers.UUIDField()
-    state = serializers.CharField()
-    state_type = serializers.CharField()
-    customer_name = serializers.CharField()
-    finishing_code = serializers.CharField()
-    customer_color_name = serializers.CharField()
-    collection = serializers.CharField()
-    quantity = serializers.CharField()
-    deadline = serializers.CharField()
-
-
 class TaskDataDetailSerializer(serializers.Serializer):
     task_id = serializers.UUIDField()
     title = serializers.CharField()

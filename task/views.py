@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
-                          SPRReportRowSerializer, TaskDataSerializer, 
+                          TaskDataSerializer, 
                           TaskDataDetailSerializer, TaskActionDetailSerializer)
 from drf_spectacular.utils import extend_schema
 from core.translation import get_localized_column
@@ -92,49 +92,6 @@ class TaskDetailView(generics.RetrieveAPIView):
             Prefetch('action_logs', queryset=TaskActionLog.objects.select_related('user', 'action')),
             Prefetch('data', queryset=TaskData.objects.select_related('field').order_by('field__order'))
         )
-
-
-class SPRReportView(APIView):
-    permission_classes = [HasJWTPermission]
-    required_permission = 'read.task.sample-request'
-    
-    @extend_schema(
-        responses=SPRReportRowSerializer(many=True),
-        description="Returns a report of tasks for a specific process using raw SQL."
-    )
-    def get(self, request):
-        translated_column = get_localized_column('wes.name')
-
-        with connection.cursor() as cursor:
-            cursor.execute(f"""
-                SELECT 
-                    tt.id AS task_id,
-                    tt.title,
-                    tt.created_at,
-                    uu.username as created_by,
-                    uu.id as user_id,
-                    {translated_column} AS state,
-                    wes.state_type AS state_type,
-                    MAX(CASE WHEN pp2.name = 'Name of customer' THEN td.value END) AS customer_name,
-                    MAX(CASE WHEN pp2.name = 'Finishing code' THEN td.value END) AS finishing_code,
-                    MAX(CASE WHEN pp2.name = 'Customer''s color name' THEN td.value END) AS customer_color_name,
-                    MAX(CASE WHEN pp2.name = 'Collection' THEN td.value END) AS collection,
-                    MAX(CASE WHEN pp2.name = 'Quantity requirement' THEN td.value END) AS quantity,
-                    MAX(CASE WHEN pp2.name = 'Deadline request' THEN td.value END) AS deadline
-                FROM task_task tt
-                JOIN user_user uu ON tt.created_by_id = uu.id
-                JOIN workflow_engine_state wes ON tt.state_id = wes.id
-                LEFT JOIN task_taskdata td ON td.task_id = tt.id
-                join process_process pp on tt.process_id = pp.id
-                join process_processfield pp2 on td.field_id = pp2.id
-                WHERE pp.prefix = 'SP'
-                GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.username, uu.id, wes.state_type, {translated_column}
-                ORDER BY tt.created_at DESC
-            """)
-            columns = [col[0] for col in cursor.description]
-            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-        return Response(results, status=status.HTTP_200_OK)
         
         
 class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
