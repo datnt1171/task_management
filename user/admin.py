@@ -25,7 +25,7 @@ class CustomUserAdmin(UserAdmin):
             'classes': ('wide',),
             'fields': ('username', 'email', 'password1', 'password2', 
                       'department', 'role', 'supervisor', 'business_function',
-                      'first_name', 'last_name', 'is_active', 'is_staff'),
+                      'first_name', 'last_name', 'is_active', 'is_staff', 'is_password_changed'),
         }),
     )
     
