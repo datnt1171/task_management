@@ -1,8 +1,8 @@
 from rest_framework import viewsets, generics
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import FinishingSheet, StepTemplate, FormularTemplate
-from .serializers import FinishingSheetSerializer, StepTemplateSerializer, FormularTemplateSerializer
+from .models import FinishingSheet, StepTemplate, FormularTemplate, SheetBlueprint
+from .serializers import FinishingSheetSerializer, StepTemplateSerializer, FormularTemplateSerializer, SheetBlueprintSerializer
 
 class StepTemplateListView(generics.ListAPIView):
     queryset = StepTemplate.objects.all()
@@ -21,7 +21,6 @@ class FinishingSheetViewSet(viewsets.ModelViewSet):
     serializer_class = FinishingSheetSerializer
     
     # Add filtering, searching, and ordering
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['task', 'created_by']
     search_fields = ['finishing_code', 'name']
     ordering_fields = ['created_at', 'updated_at']
@@ -49,3 +48,16 @@ class FinishingSheetViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(created_at__date__lte=end_date)
             
         return queryset
+    
+
+class SheetBlueprintViewSet(viewsets.ModelViewSet):
+    queryset = SheetBlueprint.objects.all()
+    serializer_class = SheetBlueprintSerializer
+    
+    filterset_fields = ['finishing_sheet', 'blueprint']
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

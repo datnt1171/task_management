@@ -132,7 +132,7 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         return Response(self.get_serializer(instance).data)
     
 
-class TaskDataDetailView(APIView):
+class TaskDataDetailListView(APIView):
     
     @extend_schema(
         responses=TaskDataDetailSerializer(many=True),
@@ -239,7 +239,69 @@ class TaskDataDetailView(APIView):
             
             results = [dict(zip(columns, row)) for row in rows]
             return Response(results, status=status.HTTP_200_OK)
+
+
+class TaskDataDetailView(APIView):
     
+    @extend_schema(
+        responses=TaskDataDetailSerializer(),
+    )
+    def get(self, request, task_id):
+        wes_name = get_localized_column('wes.name')
+
+        query = f"""
+            WITH task_data AS (
+                SELECT 
+                    tt.id task_id,
+                    tt.title,
+                    tt.created_at::date created_at,
+                    uu.username AS created_by,
+                    {wes_name} AS state,
+                    wes.state_type AS state_type,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Finishing code' THEN ttd.value END) AS finishing_code,
+                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer,
+                    MAX(CASE WHEN ppf.name = 'Customer''s color name' THEN ttd.value END) AS customer_color_name,
+                    MAX(CASE WHEN ppf.name = 'Type of substrate' THEN ttd.value END) AS type_of_substrate,
+                    MAX(CASE WHEN ppf.name = 'Collection' THEN ttd.value END) AS collection,
+                    MAX(CASE WHEN ppf.name = 'Sample Type' THEN ttd.value END) AS sample_type,
+                    MAX(CASE WHEN ppf.name = 'Quantity requirement' THEN ttd.value END) AS quantity_requirement,
+                    MAX(CASE WHEN ppf.name = 'Requester name' THEN ttd.value END) AS requester_name,
+                    MAX(CASE WHEN ppf.name = 'Deadline request' THEN ttd.value END) AS deadline_request,
+                    MAX(CASE WHEN ppf.name = 'Sampler' THEN uu_sampler.username END) AS sampler,
+                    MAX(CASE WHEN ppf.name = 'Type of paint' THEN ttd.value END) AS type_of_paint,
+                    MAX(CASE WHEN ppf.name = 'Finishing surface grain' THEN ttd.value END) AS finishing_surface_grain,       
+                    MAX(CASE WHEN ppf.name = 'Sheen level' THEN ttd.value END) AS sheen_level,       
+                    MAX(CASE WHEN ppf.name = 'Substrate surface treatment' THEN ttd.value END) AS substrate_surface_treatment,
+                    MAX(CASE WHEN ppf.name = 'Panel category' THEN ttd.value END) AS panel_category,
+                    MAX(CASE WHEN ppf.name = 'Purpose of usage' THEN ttd.value END) AS purpose_of_usage,
+                    MAX(CASE WHEN ppf.name = 'Additional detail' THEN ttd.value END) AS additional_detail
+                FROM task_task tt
+                    JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                    JOIN user_user uu ON tt.created_by_id = uu.id
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    LEFT JOIN user_user uu_sampler ON ttd.value = uu_sampler.id::text AND ppf.name = 'Sampler'
+                WHERE tt.id = %s AND tt.title LIKE 'SP%%' 
+                GROUP BY tt.id, tt.created_at::date, tt.title, uu.username, {wes_name}, wes.state_type
+            )
+            SELECT * FROM task_data
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(query, [task_id])
+            columns = [col[0] for col in cursor.description]
+            row = cursor.fetchone()
+            
+            if not row:
+                return Response(
+                    {"error": "Task not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            result = dict(zip(columns, row))
+            return Response(result, status=status.HTTP_200_OK)
+
 
 class TaskActionDetailView(APIView):
     
