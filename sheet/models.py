@@ -21,6 +21,7 @@ class FormularTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True)
     viscosity = models.PositiveSmallIntegerField()
+    spray_type = models.CharField(max_length=255)
     wft = models.PositiveIntegerField(blank=True, null=True)
     description = models.TextField(blank=True, help_text="Reason to create this formular")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,6 +41,7 @@ class ProductTemplate(models.Model):
     )
     code = models.CharField(max_length=128)
     name = models.CharField(max_length=128)
+    type = models.CharField(max_length=255)
     ratio = models.DecimalField(max_digits=10, decimal_places=2)
     unit = models.CharField(max_length=20, default='g')
     
@@ -175,6 +177,20 @@ class RowProduct(models.Model):
     
     def __str__(self):
         return self.product_name
+
+
+class SheetBlueprint(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    finishing_sheet = models.ForeignKey(FinishingSheet, on_delete=models.CASCADE, related_name='blueprints')
+    blueprint = models.CharField(max_length=128)
+    description = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='created_blueprints')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name='updated_blueprints')
+
+    class Meta:
+        ordering = ['-updated_at']
 
 
 class ProductionAudit(models.Model):

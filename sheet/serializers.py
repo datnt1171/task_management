@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import StepTemplate, FormularTemplate, ProductTemplate, FinishingSheet, SheetRow, RowProduct
+from .models import StepTemplate, FormularTemplate, ProductTemplate, FinishingSheet, SheetRow, RowProduct, SheetBlueprint
 
 class StepTemplateSerializer(serializers.ModelSerializer):
     """Always return all the translation regardless Accept-Language
@@ -189,3 +189,12 @@ class FinishingSheetSerializer(serializers.ModelSerializer):
                 )
                 
         return instance
+
+
+class SheetBlueprintSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SheetBlueprint
+        fields = ('id', 'finishing_sheet', 'blueprint', 'description',
+                  'created_at', 'created_by', 'updated_at', 'updated_by')
+        read_only_fields = ('id', 'created_at', 'updated_at', 'created_by', 'updated_by',)
