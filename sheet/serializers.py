@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
 from .models import StepTemplate, FormularTemplate, ProductTemplate, FinishingSheet, SheetRow, RowProduct, SheetBlueprint
+from user.serializers import UserSerializer
 
 class StepTemplateSerializer(serializers.ModelSerializer):
     """Always return all the translation regardless Accept-Language
@@ -115,6 +116,8 @@ class SheetRowSerializer(serializers.ModelSerializer):
 
 class FinishingSheetSerializer(serializers.ModelSerializer):
     rows = SheetRowSerializer(many=True)
+    created_by = UserSerializer(read_only=True)
+    updated_by = UserSerializer(read_only=True)
     
     class Meta:
         model = FinishingSheet
@@ -191,10 +194,28 @@ class FinishingSheetSerializer(serializers.ModelSerializer):
         return instance
 
 
+class FinishingSheetReadSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    updated_by = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = FinishingSheet
+        fields = ('id', 'task', 'finishing_code', 'name', 
+                  'sheen', 'dft', 'type_of_paint', 'type_of_substrate',
+                  'finishing_surface_grain', 'sampler',
+                  'chemical_waste', 'conveyor_speed',
+                  'with_panel_test', 'testing', 'chemical_yellowing',
+                  'created_at', 'created_by', 'updated_at', 'updated_by')
+        read_only_fields = ('created_at', 'created_by', 'updated_at', 'updated_by')
+
+
 class SheetBlueprintSerializer(serializers.ModelSerializer):
+    finishing_sheet_detail = FinishingSheetReadSerializer(source='finishing_sheet', read_only=True)
+    created_by = UserSerializer(read_only=True)
+    updated_by = UserSerializer(read_only=True)
 
     class Meta:
         model = SheetBlueprint
-        fields = ('id', 'finishing_sheet', 'blueprint', 'description',
+        fields = ('id', 'finishing_sheet', 'finishing_sheet_detail', 'blueprint', 'description',
                   'created_at', 'created_by', 'updated_at', 'updated_by')
-        read_only_fields = ('id', 'created_at', 'updated_at', 'created_by', 'updated_by',)
+        read_only_fields = ('id', 'created_at', 'updated_at', 'created_by', 'updated_by')

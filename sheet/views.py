@@ -1,6 +1,4 @@
 from rest_framework import viewsets, generics
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import FinishingSheet, StepTemplate, FormularTemplate, SheetBlueprint
 from .serializers import FinishingSheetSerializer, StepTemplateSerializer, FormularTemplateSerializer, SheetBlueprintSerializer
 
@@ -57,7 +55,7 @@ class SheetBlueprintViewSet(viewsets.ModelViewSet):
     filterset_fields = ['finishing_sheet', 'blueprint']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
     
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
