@@ -518,6 +518,7 @@ class TaskDataDetailSerializer(serializers.Serializer):
     requester_name = serializers.CharField(allow_null=True)
     deadline_request = serializers.CharField(allow_null=True)
     sampler = serializers.CharField(allow_null=True)
+    sampler_id = serializers.CharField(allow_null=True)
     type_of_paint = serializers.CharField(allow_null=True)
     finishing_surface_grain = serializers.CharField(allow_null=True)
     sheen_level = serializers.CharField(allow_null=True)
