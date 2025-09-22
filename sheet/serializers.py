@@ -194,23 +194,8 @@ class FinishingSheetSerializer(serializers.ModelSerializer):
         return instance
 
 
-class FinishingSheetReadSerializer(serializers.ModelSerializer):
-    created_by = UserSerializer(read_only=True)
-    updated_by = UserSerializer(read_only=True)
-    
-    class Meta:
-        model = FinishingSheet
-        fields = ('id', 'task', 'finishing_code', 'name', 
-                  'sheen', 'dft', 'type_of_paint', 'type_of_substrate',
-                  'finishing_surface_grain', 'sampler',
-                  'chemical_waste', 'conveyor_speed',
-                  'with_panel_test', 'testing', 'chemical_yellowing',
-                  'created_at', 'created_by', 'updated_at', 'updated_by')
-        read_only_fields = ('created_at', 'created_by', 'updated_at', 'updated_by')
-
-
 class SheetBlueprintSerializer(serializers.ModelSerializer):
-    finishing_sheet_detail = FinishingSheetReadSerializer(source='finishing_sheet', read_only=True)
+    finishing_sheet_detail = FinishingSheetSerializer(source='finishing_sheet', read_only=True)
     created_by = UserSerializer(read_only=True)
     updated_by = UserSerializer(read_only=True)
 
