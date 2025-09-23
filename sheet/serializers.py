@@ -19,6 +19,9 @@ class StepTemplateSerializer(serializers.ModelSerializer):
     spec_vi = serializers.CharField(read_only=True)
     spec_zh_hant = serializers.CharField(read_only=True)
 
+    sanding_en = serializers.CharField(read_only=True)
+    sanding_vi = serializers.CharField(read_only=True)
+    sanding_zh_hant = serializers.CharField(read_only=True)
 
     class Meta:
         model = StepTemplate
@@ -26,15 +29,21 @@ class StepTemplateSerializer(serializers.ModelSerializer):
             'id', 'name', 'short_name', 'spec', 'hold_time', 'consumption',
             'name_en', 'name_vi', 'name_zh_hant',
             'short_name_en', 'short_name_vi', 'short_name_zh_hant',
-            'spec_en', 'spec_vi', 'spec_zh_hant'
+            'spec_en', 'spec_vi', 'spec_zh_hant',
+            'sanding_en', 'sanding_vi', 'sanding_zh_hant',
         )
 
 
 class ProductTemplateSerializer(serializers.ModelSerializer):
+    type_en = serializers.CharField(read_only=True)
+    type_vi = serializers.CharField(read_only=True)
+    type_zh_hant = serializers.CharField(read_only=True)
 
     class Meta:
         model = ProductTemplate
-        fields = ('id', 'code', 'name', 'ratio', 'unit')
+        fields = ('id', 'code', 'name', 
+                  'type_en', 'type_vi', 'type_zh_hant',
+                  'ratio', 'unit',)
 
 
 class FormularTemplateSerializer(serializers.ModelSerializer):
@@ -49,7 +58,8 @@ class RowProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RowProduct
-        fields = ('id', 'order', 'product_code', 'product_name', 
+        fields = ('id', 'order', 'product_code', 'product_name',
+                  'product_type_en', 'product_type_vi', 'product_type_zh_hant',
                   'ratio', 'qty', 'unit', 
                   'check_result', 'correct_action', 'te1_signature', 'customer_signature',
                   'created_by', 'created_at', 'updated_by', 'updated_at')
@@ -63,6 +73,8 @@ class SheetRowSerializer(serializers.ModelSerializer):
         model = SheetRow
         fields = ('id', 'step_template', 'formular_template', 'step_num', 'spot',
                   'stepname_en', 'stepname_vi', 'stepname_zh_hant',
+                  'stepname_short_en', 'stepname_short_vi', 'stepname_short_zh_hant',
+                  'sanding_en', 'sanding_vi', 'sanding_zh_hant', 
                   'viscosity_en', 'viscosity_vi', 'viscosity_zh_hant',
                   'spec_en', 'spec_vi', 'spec_zh_hant',
                   'hold_time', 'chemical_code', 'consumption',

@@ -3,11 +3,7 @@ from .models import StepTemplate, FormularTemplate, ProductTemplate
 
 @register(StepTemplate)
 class StepTemplateTranslationOptions(TranslationOptions):
-    fields = ('name', 'short_name', 'spec',)
-
-@register(FormularTemplate)
-class FormularTemplateTranslationOptions(TranslationOptions):
-    fields = ('spray_type',)
+    fields = ('name', 'short_name', 'spec', 'sanding',)
 
 @register(ProductTemplate)
 class ProductTemplateTranslationOptions(TranslationOptions):

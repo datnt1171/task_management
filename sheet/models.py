@@ -5,8 +5,9 @@ import uuid
 class StepTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=128, unique=True)
-    short_name = models.CharField(max_length=128, unique=True)
+    short_name = models.CharField(max_length=25, unique=True)
     spec = models.TextField(blank=True)
+    sanding = models.CharField(max_length=128, blank=True)
     hold_time = models.PositiveIntegerField()
     consumption = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True, help_text="Reason to create this step")
@@ -21,9 +22,8 @@ class FormularTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True)
     viscosity = models.PositiveSmallIntegerField()
-    spray_type = models.CharField(max_length=255)
     wft = models.PositiveIntegerField(blank=True, null=True)
-    description = models.TextField(blank=True, help_text="Reason to create this formular")
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -120,6 +120,14 @@ class SheetRow(models.Model):
     stepname_vi = models.CharField(max_length=255)
     stepname_zh_hant = models.CharField(max_length=255)
 
+    stepname_short_en = models.CharField(max_length=255)
+    stepname_short_vi = models.CharField(max_length=255)
+    stepname_short_zh_hant = models.CharField(max_length=255)
+
+    sanding_en = models.CharField(max_length=255)
+    sanding_vi = models.CharField(max_length=255)
+    sanding_zh_hant = models.CharField(max_length=255)
+
     viscosity_en = models.TextField()
     viscosity_vi = models.TextField()
     viscosity_zh_hant = models.TextField()
@@ -156,6 +164,9 @@ class RowProduct(models.Model):
 
     product_code = models.CharField(max_length=100)
     product_name = models.CharField(max_length=200)
+    product_type_en = models.CharField(max_length=255)
+    product_type_vi = models.CharField(max_length=255)
+    product_type_zh_hant = models.CharField(max_length=255)
     
     # Production-specific fields
     ratio = models.CharField(max_length=50)
