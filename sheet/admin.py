@@ -5,7 +5,9 @@ class ProductTemplateInline(admin.TabularInline):
     model = ProductTemplate
     extra = 0
     ordering = ['name']
-    fields = ('code', 'name', 'ratio', 'unit',)
+    fields = ('code', 'name', 'ratio', 
+              'type', 'type_en', 'type_vi', 'type_zh_hant', 
+              'unit',)
     show_change_link = True
 
 class FormularTemplateAdmin(admin.ModelAdmin):

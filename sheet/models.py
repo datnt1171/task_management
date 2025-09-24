@@ -21,7 +21,7 @@ class StepTemplate(models.Model):
 class FormularTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True)
-    viscosity = models.PositiveSmallIntegerField()
+    viscosity = models.PositiveSmallIntegerField(blank=True, null=True)
     wft = models.PositiveIntegerField(blank=True, null=True)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -124,17 +124,17 @@ class SheetRow(models.Model):
     stepname_short_vi = models.CharField(max_length=255)
     stepname_short_zh_hant = models.CharField(max_length=255)
 
-    sanding_en = models.CharField(max_length=255)
-    sanding_vi = models.CharField(max_length=255)
-    sanding_zh_hant = models.CharField(max_length=255)
+    sanding_en = models.CharField(max_length=255, blank=True)
+    sanding_vi = models.CharField(max_length=255, blank=True)
+    sanding_zh_hant = models.CharField(max_length=255, blank=True)
 
-    viscosity_en = models.TextField()
-    viscosity_vi = models.TextField()
-    viscosity_zh_hant = models.TextField()
+    viscosity_en = models.TextField(blank=True)
+    viscosity_vi = models.TextField(blank=True)
+    viscosity_zh_hant = models.TextField(blank=True)
 
-    spec_en = models.TextField()
-    spec_vi = models.TextField()
-    spec_zh_hant = models.TextField()
+    spec_en = models.TextField(blank=True)
+    spec_vi = models.TextField(blank=True)
+    spec_zh_hant = models.TextField(blank=True)
 
     hold_time = models.CharField(max_length=50)
     chemical_code = models.CharField(max_length=100)
