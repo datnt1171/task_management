@@ -16,8 +16,8 @@ def run():
                     name_vi=row['name_vi'],
                     name_zh_hant=row['name_zh_hant'],
 
-                    short_name=row['short_name'],
-                    short_name_en=row['short_name'],
+                    short_name=row['short_name_en'],
+                    short_name_en=row['short_name_en'],
                     short_name_vi=row['short_name_vi'],
                     short_name_zh_hant=row['short_name_zh_hant'],
 
@@ -25,6 +25,11 @@ def run():
                     spec_en=row['spec_en'],
                     spec_vi=row['spec_vi'],
                     spec_zh_hant=row['spec_zh_hant'],
+
+                    sanding=row['sanding_en'],
+                    sanding_en=row['sanding_en'],
+                    sanding_vi=row['sanding_vi'],
+                    sanding_zh_hant=row['sanding_zh_hant'],
 
                     hold_time=row['hold_time'],
                     consumption=row['consumption'] 
