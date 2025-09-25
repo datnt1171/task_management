@@ -7,7 +7,9 @@ from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
                           TaskDataSerializer, 
-                          TaskDataDetailSerializer, TaskActionDetailSerializer)
+                          TaskDataDetailSerializer, TaskActionDetailSerializer,
+                          OnsiteTransferAbsenceSerializer, TransferAbsenceSerializer,
+                          OvertimeSerializer)
 from drf_spectacular.utils import extend_schema
 from core.translation import get_localized_column
 from user.permissions import HasJWTPermission
@@ -15,6 +17,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from process.models import FieldType
 from rest_framework.exceptions import PermissionDenied
+from datetime import datetime
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -313,7 +316,7 @@ class TaskActionDetailView(APIView):
     def get(self, request):
         wes_name = get_localized_column('wes.name')
         pa_name = get_localized_column('pa.name')
-
+        sp_prefix = 'SP%'
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT 
@@ -342,10 +345,243 @@ class TaskActionDetailView(APIView):
                     JOIN task_taskactionlog ttal ON tt.id = ttal.task_id
                     JOIN process_action pa ON ttal.action_id = pa.id
                     JOIN user_user uu2 ON ttal.user_id = uu2.id
-                WHERE tt.title LIKE 'SP%'
-                    AND tt.created_at >= '2025-08-29'
+                WHERE tt.title LIKE %(prefix)s
                 ORDER BY tt.title, action_created_at;
-            """)
+            """, {'prefix': sp_prefix})
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    
+
+class OnsiteTransferAbsenceView(APIView):
+    
+    @extend_schema(
+        responses=OnsiteTransferAbsenceSerializer(many=True),
+    )
+    def get(self, request):
+        date = request.query_params.get('date')
+        try:
+            if not date:
+                raise ValueError()
+            datetime.strptime(date, '%Y-%m-%d')
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        ta_prefix = 'TA%'
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH transfer_absence AS (
+                    SELECT
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                        MAX(CASE WHEN ppf.name = 'username' THEN ttd.value END) AS user_id,
+                        MAX(CASE WHEN ppf.name = 'Transfer type' THEN ttd.value END) AS transfer_type,
+                        MAX(CASE WHEN ppf.name = 'From date' THEN ttd.value END) AS from_date,
+                        MAX(CASE WHEN ppf.name = 'To date' THEN ttd.value END) AS to_date,
+                        MAX(CASE WHEN ppf.name = 'Reason' THEN ttd.value END) AS reason
+                    FROM task_task tt
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    WHERE tt.title LIKE %(prefix)s
+                    GROUP BY tt.id
+                    HAVING
+                        MAX(CASE WHEN ppf.name = 'From date' THEN ttd.value END) <= %(date)s
+                        AND MAX(CASE WHEN ppf.name = 'To date' THEN ttd.value END) >= %(date)s
+                ),
+                onsite_list AS (
+                    SELECT ufo.factory, ufo.user_id, ud."name" AS dept_name
+                    FROM user_userfactoryonsite ufo
+                    JOIN user_user uu ON ufo.user_id = uu.id
+                    JOIN user_department ud ON uu.department_id = ud.id
+                    WHERE ufo.year = EXTRACT(YEAR FROM %(date)s::date) 
+                        AND ufo.month = EXTRACT(MONTH FROM %(date)s::date)
+                ),
+                grouped_data AS (
+                    SELECT factory, dept_name, COUNT(user_id) AS count_users
+                    FROM onsite_list
+                    GROUP BY factory, dept_name
+                ),
+                factory_onsite AS (
+                    SELECT
+                        factory,
+                        COALESCE(SUM(CASE WHEN dept_name = 'KTW' THEN count_users END), 0) AS KTW,
+                        COALESCE(SUM(CASE WHEN dept_name = 'KTC' THEN count_users END), 0) AS KTC,
+                        COALESCE(SUM(CASE WHEN dept_name = 'KVN' THEN count_users END), 0) AS KVN
+                    FROM grouped_data
+                    GROUP BY factory
+                ),
+                -- Transfer and absence analysis CTEs
+                transfer_onsite_list AS (
+                    SELECT ufo.user_id, ufo.factory, ufo."year", ufo."month"
+                    FROM user_userfactoryonsite ufo
+                    WHERE ufo.year = EXTRACT(YEAR FROM %(date)s::date) 
+                        AND ufo.month = EXTRACT(MONTH FROM %(date)s::date)
+                ),
+                factory_change_list AS (
+                    SELECT ta.user_id, ol.factory factory_onsite, ta.name_of_customer AS factory_change, ta.transfer_type
+                    FROM transfer_absence ta
+                    JOIN transfer_onsite_list ol ON ta.user_id = ol.user_id::text
+                ),
+                user_info AS (
+                    SELECT uu.id, ud.name AS dept_name
+                    FROM user_user uu
+                    JOIN user_department ud ON uu.department_id = ud.id
+                ),
+                factory_combined AS (
+                    SELECT factory_onsite, factory_change, transfer_type, fcl.user_id, dept_name
+                    FROM factory_change_list fcl
+                    JOIN user_info ui ON fcl.user_id = ui.id::text
+                ),
+                factory_movements AS (
+                    SELECT 
+                        fo.factory,
+                        -- Incoming transfers by department
+                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_in,
+                        
+                        -- Outgoing transfers by department
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTW_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTC_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KVN_out,
+                        
+                        -- Absences by department
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_absence,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_absence,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_absence
+                    FROM factory_onsite fo
+                    LEFT JOIN factory_combined fc ON (fo.factory = fc.factory_onsite OR fo.factory = fc.factory_change)
+                    GROUP BY fo.factory
+                )
+                -- Final result combining onsite counts with movements
+                SELECT 
+                    fo.factory as factory_code,
+                    -- Current onsite counts
+                    fo.KTW AS KTW_onsite,
+                    fo.KTC AS KTC_onsite, 
+                    fo.KVN AS KVN_onsite,
+                    
+                    -- Transfer movements
+                    COALESCE(fm.KTW_in, 0) AS KTW_in,
+                    COALESCE(fm.KTC_in, 0) AS KTC_in,
+                    COALESCE(fm.KVN_in, 0) AS KVN_in,
+                    COALESCE(fm.KTW_out, 0) AS KTW_out,
+                    COALESCE(fm.KTC_out, 0) AS KTC_out,
+                    COALESCE(fm.KVN_out, 0) AS KVN_out,
+                    
+                    -- Absences
+                    COALESCE(fm.KTW_absence, 0) AS KTW_absence,
+                    COALESCE(fm.KTC_absence, 0) AS KTC_absence,
+                    COALESCE(fm.KVN_absence, 0) AS KVN_absence
+                FROM factory_onsite fo
+                LEFT JOIN factory_movements fm ON fo.factory = fm.factory
+                ORDER BY fo.factory;
+            """, {'date': date, 'prefix': ta_prefix})
+            
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    
+
+class TransferAbsenceView(APIView):
+    
+    @extend_schema(
+        responses=TransferAbsenceSerializer(many=True),
+    )
+    def get(self, request):
+        date = request.query_params.get('date')
+        try:
+            if not date:
+                raise ValueError()
+            datetime.strptime(date, '%Y-%m-%d')
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        ta_prefix = 'TA%'
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH transfer_absence AS (
+                    SELECT
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                        MAX(CASE WHEN ppf.name = 'username' THEN ttd.value END) AS user_id,
+                        MAX(CASE WHEN ppf.name = 'Transfer type' THEN ttd.value END) AS transfer_type,
+                        MAX(CASE WHEN ppf.name = 'From date' THEN ttd.value END) AS from_date,
+                        MAX(CASE WHEN ppf.name = 'To date' THEN ttd.value END) AS to_date,
+                        MAX(CASE WHEN ppf.name = 'Reason' THEN ttd.value END) AS reason
+                    FROM task_task tt
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    WHERE tt.title LIKE %(prefix)s
+                    GROUP BY tt.id
+                )
+                SELECT 
+                    ta.name_of_customer, ta.user_id,
+                    ta.transfer_type, ta.from_date, ta.to_date, ta.reason,
+                    uu.username, uu.first_name, uu.last_name
+                FROM transfer_absence ta
+                    JOIN user_user uu ON uu.id::text = ta.user_id
+                WHERE from_date < %(date)s
+                    AND to_date > %(date)s
+            """, {'date': date, 'prefix': ta_prefix})
+            
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    
+
+class OvertimeView(APIView):
+    
+    @extend_schema(
+        responses=OvertimeSerializer(many=True),
+    )
+    def get(self, request):
+        date = request.query_params.get('date')
+        try:
+            if not date:
+                raise ValueError()
+            datetime.strptime(date, '%Y-%m-%d')
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        dr_prefix = 'DR%'
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Weekday overtime' THEN ttd.value END) AS weekday_ot,
+                    MAX(CASE WHEN ppf.name = 'Overtime start time today' THEN ttd.value END) AS weekday_ot_start,
+                    MAX(CASE WHEN ppf.name = 'Overtime end time today' THEN ttd.value END) AS weekday_ot_end,
+                    MAX(CASE WHEN ppf.name = 'Number of overtime workers today' THEN ttd.value END) AS weekday_ot_num,
+                    MAX(CASE WHEN ppf.name = 'Hanging line today' THEN ttd.value END) AS hanging_line_today,
+                    MAX(CASE WHEN ppf.name = 'Pallet line today' THEN ttd.value END) AS pallet_line_today,
+                    MAX(CASE WHEN ppf.name = 'Others task today' THEN ttd.value END) AS others_today,
+                    MAX(CASE WHEN ppf.name = 'Hanging line tomorrow' THEN ttd.value END) AS hanging_line_tomorrow,
+                    MAX(CASE WHEN ppf.name = 'Pallet line tomorrow' THEN ttd.value END) AS pallet_line_tomorrow,
+                    MAX(CASE WHEN ppf.name = 'Others task tomorrow' THEN ttd.value END) AS others_tomorrow,
+                    MAX(CASE WHEN ppf.name = 'Customer in stock status' THEN ttd.value END) AS instock,
+                    MAX(CASE WHEN ppf.name = 'Customer in stock status for each color code' THEN ttd.value END) AS instock_by_code,       
+                    MAX(CASE WHEN ppf.name = 'Sunday overtime' THEN ttd.value END) AS sunday_ot,       
+                    MAX(CASE WHEN ppf.name = 'Sunday overtime end time' THEN ttd.value END) AS sunday_ot_end,
+                    MAX(CASE WHEN ppf.name = 'Number of overtime workers sunday' THEN ttd.value END) AS sunday_ot_num,
+                    MAX(CASE WHEN ppf.name = 'Hanging line sunday' THEN ttd.value END) AS hanging_line_sunday,
+                    MAX(CASE WHEN ppf.name = 'Pallet line sunday' THEN ttd.value END) AS pallet_line_sunday,
+                    tt.created_at 
+                FROM task_task tt
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                WHERE tt.title LIKE %(prefix)s
+                    AND DATE(tt.created_at) = %(date)s
+                GROUP BY tt.id
+            """, {'date': date, 'prefix': dr_prefix})
+            
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
