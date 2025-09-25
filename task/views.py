@@ -361,9 +361,12 @@ class OnsiteTransferAbsenceView(APIView):
     )
     def get(self, request):
         date = request.query_params.get('date')
+    
+        if not date:
+            # Default to today if no date provided
+            date = datetime.today().strftime('%Y-%m-%d')
+        
         try:
-            if not date:
-                raise ValueError()
             datetime.strptime(date, '%Y-%m-%d')
         except ValueError:
             return Response(
@@ -493,9 +496,11 @@ class TransferAbsenceView(APIView):
     )
     def get(self, request):
         date = request.query_params.get('date')
+    
+        if not date:
+            date = datetime.today().strftime('%Y-%m-%d')
+        
         try:
-            if not date:
-                raise ValueError()
             datetime.strptime(date, '%Y-%m-%d')
         except ValueError:
             return Response(
@@ -542,9 +547,11 @@ class OvertimeView(APIView):
     )
     def get(self, request):
         date = request.query_params.get('date')
+    
+        if not date:
+            date = datetime.today().strftime('%Y-%m-%d')
+        
         try:
-            if not date:
-                raise ValueError()
             datetime.strptime(date, '%Y-%m-%d')
         except ValueError:
             return Response(
