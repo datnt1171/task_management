@@ -564,6 +564,7 @@ class OnsiteTransferAbsenceSerializer(serializers.Serializer):
 
 
 class TransferAbsenceSerializer(serializers.Serializer):
+    task_id = serializers.CharField()
     factory_code = serializers.CharField()
     user_id = serializers.CharField()
     transfer_type = serializers.CharField()
@@ -573,9 +574,12 @@ class TransferAbsenceSerializer(serializers.Serializer):
     username = serializers.CharField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
+    department = serializers.CharField()
+    factory_code_onsite = serializers.CharField()
 
 
 class OvertimeSerializer(serializers.Serializer):
+    task_id = serializers.CharField()
     factory_code = serializers.CharField()
     weekday_ot = serializers.CharField()
     weekday_ot_start = serializers.TimeField()

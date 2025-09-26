@@ -495,23 +495,37 @@ class TransferAbsenceView(APIView):
         responses=TransferAbsenceSerializer(many=True),
     )
     def get(self, request):
-        date = request.query_params.get('date')
-    
-        if not date:
-            date = datetime.today().strftime('%Y-%m-%d')
+        start_date = request.query_params.get('date__gte')
+        end_date = request.query_params.get('date__lte')
         
+        # Both start_date and end_date are required
+        if not start_date or not end_date:
+            today = datetime.today().strftime('%Y-%m-%d')
+            start_date = end_date = today
+        
+        # Validate date formats
         try:
-            datetime.strptime(date, '%Y-%m-%d')
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
         except ValueError:
             return Response(
                 {"error": "Invalid date format. Use YYYY-MM-DD"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Validate that start_date is before end_date
+        if start_date > end_date:
+            return Response(
+                {"error": "start_date must be before or equal to end_date"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         ta_prefix = 'TA%'
         with connection.cursor() as cursor:
             cursor.execute("""
                 WITH transfer_absence AS (
                     SELECT
+                        tt.id as task_id,
                         MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                         MAX(CASE WHEN ppf.name = 'username' THEN ttd.value END) AS user_id,
                         MAX(CASE WHEN ppf.name = 'Transfer type' THEN ttd.value END) AS transfer_type,
@@ -523,16 +537,29 @@ class TransferAbsenceView(APIView):
                     JOIN process_processfield ppf ON ttd.field_id = ppf.id
                     WHERE tt.title LIKE %(prefix)s
                     GROUP BY tt.id
+                ),
+                onsite as (
+                    SELECT DISTINCT user_id as user_id_onsite, factory as factory_code_onsite
+                    FROM user_userfactoryonsite
+                    WHERE year = EXTRACT(YEAR FROM %(start_date)s::date) 
+                        AND month = EXTRACT(MONTH FROM %(start_date)s::date)
                 )
                 SELECT 
+                    task_id,
                     ta.factory_code, ta.user_id,
                     ta.transfer_type, ta.from_date, ta.to_date, ta.reason,
-                    uu.username, uu.first_name, uu.last_name
+                    uu.username, uu.first_name, uu.last_name, ud.name as department,
+                    factory_code_onsite
                 FROM transfer_absence ta
                     JOIN user_user uu ON uu.id::text = ta.user_id
-                WHERE from_date < %(date)s
-                    AND to_date > %(date)s
-            """, {'date': date, 'prefix': ta_prefix})
+                    JOIN user_department ud ON uu.department_id = ud.id
+                    JOIN onsite os ON os.user_id_onsite = uu.id
+                WHERE (ta.from_date <= %(end_date)s AND ta.to_date >= %(start_date)s)
+            """, {
+                'start_date': start_date, 
+                'end_date': end_date, 
+                'prefix': ta_prefix
+            })
             
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -546,22 +573,35 @@ class OvertimeView(APIView):
         responses=OvertimeSerializer(many=True),
     )
     def get(self, request):
-        date = request.query_params.get('date')
-    
-        if not date:
-            date = datetime.today().strftime('%Y-%m-%d')
+        start_date = request.query_params.get('date__gte')
+        end_date = request.query_params.get('date__lte')
         
+        # Both start_date and end_date are required
+        if not start_date or not end_date:
+            today = datetime.today().strftime('%Y-%m-%d')
+            start_date = end_date = today
+        
+        # Validate date formats
         try:
-            datetime.strptime(date, '%Y-%m-%d')
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
         except ValueError:
             return Response(
                 {"error": "Invalid date format. Use YYYY-MM-DD"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate that start_date is before end_date
+        if start_date > end_date:
+            return Response(
+                {"error": "start_date must be before or equal to end_date"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         dr_prefix = 'DR%'
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT 
+                    tt.id as task_id,
                     MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                     MAX(CASE WHEN ppf.name = 'Weekday overtime' THEN ttd.value END) AS weekday_ot,
                     MAX(CASE WHEN ppf.name = 'Overtime start time today' THEN ttd.value END) AS weekday_ot_start,
@@ -585,9 +625,9 @@ class OvertimeView(APIView):
                     JOIN task_taskdata ttd ON tt.id = ttd.task_id
                     JOIN process_processfield ppf ON ttd.field_id = ppf.id
                 WHERE tt.title LIKE %(prefix)s
-                    AND DATE(tt.created_at) = %(date)s
-                GROUP BY tt.id
-            """, {'date': date, 'prefix': dr_prefix})
+                    AND DATE(tt.created_at) BETWEEN %(start_date)s AND %(end_date)s
+                GROUP BY tt.id, tt.created_at
+            """, {'start_date': start_date, 'end_date': end_date, 'prefix': dr_prefix})
             
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
