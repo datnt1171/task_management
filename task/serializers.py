@@ -507,9 +507,9 @@ class TaskDataDetailSerializer(serializers.Serializer):
     created_by = serializers.CharField()
     state = serializers.CharField()
     state_type = serializers.CharField()
-    name_of_customer = serializers.CharField()
+    factory_code = serializers.CharField()
     finishing_code = serializers.CharField()
-    retailer = serializers.CharField()
+    retailer_id = serializers.CharField()
     customer_color_name = serializers.CharField()
     type_of_substrate = serializers.CharField()
     collection = serializers.CharField()
@@ -564,7 +564,7 @@ class OnsiteTransferAbsenceSerializer(serializers.Serializer):
 
 
 class TransferAbsenceSerializer(serializers.Serializer):
-    name_of_customer = serializers.CharField()
+    factory_code = serializers.CharField()
     user_id = serializers.CharField()
     transfer_type = serializers.CharField()
     from_date = serializers.DateField()
@@ -576,7 +576,7 @@ class TransferAbsenceSerializer(serializers.Serializer):
 
 
 class OvertimeSerializer(serializers.Serializer):
-    name_of_customer = serializers.CharField()
+    factory_code = serializers.CharField()
     weekday_ot = serializers.CharField()
     weekday_ot_start = serializers.TimeField()
     weekday_ot_end = serializers.TimeField()

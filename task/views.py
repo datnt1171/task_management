@@ -145,8 +145,8 @@ class TaskDataDetailListView(APIView):
 
         # Parse and validate query parameters
         state_type__in = request.query_params.get('state_type__in')
-        name_of_customer__in = request.query_params.get('name_of_customer__in')
-        retailer__in = request.query_params.get('retailer__in')
+        factory_code__in = request.query_params.get('factory_code__in')
+        retailer_id__in = request.query_params.get('retailer_id__in')
         sampler__in = request.query_params.get('sampler__in')
 
         # Build main CTE query
@@ -159,9 +159,9 @@ class TaskDataDetailListView(APIView):
                     uu.username AS created_by,
                     {wes_name} AS state,
                     wes.state_type AS state_type,
-                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                     MAX(CASE WHEN ppf.name = 'Finishing code' THEN ttd.value END) AS finishing_code,
-                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer,
+                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer_id,
                     MAX(CASE WHEN ppf.name = 'Customer''s color name' THEN ttd.value END) AS customer_color_name,
                     MAX(CASE WHEN ppf.name = 'Type of substrate' THEN ttd.value END) AS type_of_substrate,
                     MAX(CASE WHEN ppf.name = 'Collection' THEN ttd.value END) AS collection,
@@ -202,18 +202,18 @@ class TaskDataDetailListView(APIView):
                 filter_conditions.append(f"state_type IN ({placeholders})")
                 query_params.extend(states)
 
-        if name_of_customer__in:
-            customers = [s.strip() for s in name_of_customer__in.split(',') if s.strip()]
+        if factory_code__in:
+            customers = [s.strip() for s in factory_code__in.split(',') if s.strip()]
             if customers:
                 placeholders = ','.join(['%s'] * len(customers))
-                filter_conditions.append(f"name_of_customer IN ({placeholders})")
+                filter_conditions.append(f"factory_code IN ({placeholders})")
                 query_params.extend(customers)
 
-        if retailer__in:
-            retailers = [s.strip() for s in retailer__in.split(',') if s.strip()]
+        if retailer_id__in:
+            retailers = [s.strip() for s in retailer_id__in.split(',') if s.strip()]
             if retailers:
                 placeholders = ','.join(['%s'] * len(retailers))
-                filter_conditions.append(f"retailer IN ({placeholders})")
+                filter_conditions.append(f"retailer_id IN ({placeholders})")
                 query_params.extend(retailers)
 
         if sampler__in:
@@ -262,9 +262,9 @@ class TaskDataDetailView(APIView):
                     uu.username AS created_by,
                     {wes_name} AS state,
                     wes.state_type AS state_type,
-                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                     MAX(CASE WHEN ppf.name = 'Finishing code' THEN ttd.value END) AS finishing_code,
-                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer,
+                    MAX(CASE WHEN ppf.name = 'Retailer' THEN ttd.value END) AS retailer_id,
                     MAX(CASE WHEN ppf.name = 'Customer''s color name' THEN ttd.value END) AS customer_color_name,
                     MAX(CASE WHEN ppf.name = 'Type of substrate' THEN ttd.value END) AS type_of_substrate,
                     MAX(CASE WHEN ppf.name = 'Collection' THEN ttd.value END) AS collection,
@@ -378,7 +378,7 @@ class OnsiteTransferAbsenceView(APIView):
             cursor.execute("""
                 WITH transfer_absence AS (
                     SELECT
-                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                         MAX(CASE WHEN ppf.name = 'username' THEN ttd.value END) AS user_id,
                         MAX(CASE WHEN ppf.name = 'Transfer type' THEN ttd.value END) AS transfer_type,
                         MAX(CASE WHEN ppf.name = 'From date' THEN ttd.value END) AS from_date,
@@ -423,7 +423,7 @@ class OnsiteTransferAbsenceView(APIView):
                         AND ufo.month = EXTRACT(MONTH FROM %(date)s::date)
                 ),
                 factory_change_list AS (
-                    SELECT ta.user_id, ol.factory factory_onsite, ta.name_of_customer AS factory_change, ta.transfer_type
+                    SELECT ta.user_id, ol.factory factory_onsite, ta.factory_code AS factory_change, ta.transfer_type
                     FROM transfer_absence ta
                     JOIN transfer_onsite_list ol ON ta.user_id = ol.user_id::text
                 ),
@@ -512,7 +512,7 @@ class TransferAbsenceView(APIView):
             cursor.execute("""
                 WITH transfer_absence AS (
                     SELECT
-                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                         MAX(CASE WHEN ppf.name = 'username' THEN ttd.value END) AS user_id,
                         MAX(CASE WHEN ppf.name = 'Transfer type' THEN ttd.value END) AS transfer_type,
                         MAX(CASE WHEN ppf.name = 'From date' THEN ttd.value END) AS from_date,
@@ -525,7 +525,7 @@ class TransferAbsenceView(APIView):
                     GROUP BY tt.id
                 )
                 SELECT 
-                    ta.name_of_customer, ta.user_id,
+                    ta.factory_code, ta.user_id,
                     ta.transfer_type, ta.from_date, ta.to_date, ta.reason,
                     uu.username, uu.first_name, uu.last_name
                 FROM transfer_absence ta
@@ -562,7 +562,7 @@ class OvertimeView(APIView):
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT 
-                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS name_of_customer,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                     MAX(CASE WHEN ppf.name = 'Weekday overtime' THEN ttd.value END) AS weekday_ot,
                     MAX(CASE WHEN ppf.name = 'Overtime start time today' THEN ttd.value END) AS weekday_ot_start,
                     MAX(CASE WHEN ppf.name = 'Overtime end time today' THEN ttd.value END) AS weekday_ot_end,
