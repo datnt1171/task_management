@@ -549,18 +549,22 @@ class OnsiteTransferAbsenceSerializer(serializers.Serializer):
     ktw_onsite = serializers.IntegerField()
     ktc_onsite = serializers.IntegerField()
     kvn_onsite = serializers.IntegerField()
+    tt_onsite = serializers.IntegerField()
 
     ktw_in = serializers.IntegerField()
     ktc_in = serializers.IntegerField()
     kvn_in = serializers.IntegerField()
+    tt_in = serializers.IntegerField()
 
     ktw_out = serializers.IntegerField()
     ktc_out = serializers.IntegerField()
     kvn_out = serializers.IntegerField()
+    tt_out = serializers.IntegerField()
 
     ktw_absence = serializers.IntegerField()
     ktc_absence = serializers.IntegerField()
     kvn_absence = serializers.IntegerField()
+    tt_absence = serializers.IntegerField()
 
 
 class TransferAbsenceSerializer(serializers.Serializer):

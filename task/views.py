@@ -411,9 +411,16 @@ class OnsiteTransferAbsenceView(APIView):
                         factory,
                         COALESCE(SUM(CASE WHEN dept_name = 'KTW' THEN count_users END), 0) AS KTW,
                         COALESCE(SUM(CASE WHEN dept_name = 'KTC' THEN count_users END), 0) AS KTC,
-                        COALESCE(SUM(CASE WHEN dept_name = 'KVN' THEN count_users END), 0) AS KVN
+                        COALESCE(SUM(CASE WHEN dept_name = 'KVN' THEN count_users END), 0) AS KVN,
+                        COALESCE(SUM(CASE WHEN dept_name = 'TT' THEN count_users END), 0) AS TT
                     FROM grouped_data
                     GROUP BY factory
+                ),
+                -- Get all factories from both onsite and transfer data
+                all_factories AS (
+                    SELECT DISTINCT factory FROM factory_onsite
+                    UNION
+                    SELECT DISTINCT factory_code FROM transfer_absence WHERE factory_code IS NOT NULL AND factory_code != ''
                 ),
                 -- Transfer and absence analysis CTEs
                 transfer_onsite_list AS (
@@ -425,7 +432,7 @@ class OnsiteTransferAbsenceView(APIView):
                 factory_change_list AS (
                     SELECT ta.user_id, ol.factory factory_onsite, ta.factory_code AS factory_change, ta.transfer_type
                     FROM transfer_absence ta
-                    JOIN transfer_onsite_list ol ON ta.user_id = ol.user_id::text
+                    LEFT JOIN transfer_onsite_list ol ON ta.user_id = ol.user_id::text
                 ),
                 user_info AS (
                     SELECT uu.id, ud.name AS dept_name
@@ -439,48 +446,55 @@ class OnsiteTransferAbsenceView(APIView):
                 ),
                 factory_movements AS (
                     SELECT 
-                        fo.factory,
+                        af.factory,
                         -- Incoming transfers by department
-                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_in,
-                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_in,
-                        COALESCE(SUM(CASE WHEN fc.factory_change = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_in,
+                        COALESCE(SUM(CASE WHEN fc.factory_change = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'TT' THEN 1 END), 0) AS TT_in,
                         
                         -- Outgoing transfers by department
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTW_out,
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTC_out,
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KVN_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTW' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTW_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KTC' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KTC_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'KVN' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS KVN_out,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type = '調動 ĐIỀU ĐỘNG' AND fc.dept_name = 'TT' AND fc.factory_change IS NOT NULL AND fc.factory_change != '' THEN 1 END), 0) AS TT_out,
                         
                         -- Absences by department
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_absence,
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_absence,
-                        COALESCE(SUM(CASE WHEN fc.factory_onsite = fo.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_absence
-                    FROM factory_onsite fo
-                    LEFT JOIN factory_combined fc ON (fo.factory = fc.factory_onsite OR fo.factory = fc.factory_change)
-                    GROUP BY fo.factory
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTW' THEN 1 END), 0) AS KTW_absence,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KTC' THEN 1 END), 0) AS KTC_absence,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'KVN' THEN 1 END), 0) AS KVN_absence,
+                        COALESCE(SUM(CASE WHEN fc.factory_onsite = af.factory AND fc.transfer_type IN ('CL底薪假', '請假 NGHỈ PHÉP') AND fc.dept_name = 'TT' THEN 1 END), 0) AS TT_absence
+                    FROM all_factories af
+                    LEFT JOIN factory_combined fc ON (af.factory = fc.factory_onsite OR af.factory = fc.factory_change)
+                    GROUP BY af.factory
                 )
                 -- Final result combining onsite counts with movements
                 SELECT 
-                    fo.factory as factory_code,
+                    COALESCE(fo.factory, fm.factory) as factory_code,
                     -- Current onsite counts
-                    fo.KTW AS KTW_onsite,
-                    fo.KTC AS KTC_onsite, 
-                    fo.KVN AS KVN_onsite,
+                    COALESCE(fo.KTW, 0) AS KTW_onsite,
+                    COALESCE(fo.KTC, 0) AS KTC_onsite, 
+                    COALESCE(fo.KVN, 0) AS KVN_onsite,
+                    COALESCE(fo.TT, 0) AS TT_onsite,
                     
                     -- Transfer movements
                     COALESCE(fm.KTW_in, 0) AS KTW_in,
                     COALESCE(fm.KTC_in, 0) AS KTC_in,
                     COALESCE(fm.KVN_in, 0) AS KVN_in,
+                    COALESCE(fm.TT_in, 0) AS TT_in,
                     COALESCE(fm.KTW_out, 0) AS KTW_out,
                     COALESCE(fm.KTC_out, 0) AS KTC_out,
                     COALESCE(fm.KVN_out, 0) AS KVN_out,
+                    COALESCE(fm.TT_out, 0) AS TT_out,
                     
                     -- Absences
                     COALESCE(fm.KTW_absence, 0) AS KTW_absence,
                     COALESCE(fm.KTC_absence, 0) AS KTC_absence,
-                    COALESCE(fm.KVN_absence, 0) AS KVN_absence
+                    COALESCE(fm.KVN_absence, 0) AS KVN_absence,
+                    COALESCE(fm.TT_absence, 0) AS TT_absence
                 FROM factory_onsite fo
-                LEFT JOIN factory_movements fm ON fo.factory = fm.factory
-                ORDER BY fo.factory;
+                FULL OUTER JOIN factory_movements fm ON fo.factory = fm.factory
+                ORDER BY COALESCE(fo.factory, fm.factory);
             """, {'date': date, 'prefix': ta_prefix})
             
             columns = [col[0] for col in cursor.description]
@@ -553,7 +567,7 @@ class TransferAbsenceView(APIView):
                 FROM transfer_absence ta
                     JOIN user_user uu ON uu.id::text = ta.user_id
                     JOIN user_department ud ON uu.department_id = ud.id
-                    JOIN onsite os ON os.user_id_onsite = uu.id
+                    LEFT JOIN onsite os ON os.user_id_onsite = uu.id
                 WHERE (ta.from_date <= %(end_date)s AND ta.to_date >= %(start_date)s)
             """, {
                 'start_date': start_date, 
