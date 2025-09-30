@@ -7,7 +7,7 @@ from .models import Task, TaskActionLog, TaskData, TaskPermission
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
                           TaskDataSerializer, 
-                          TaskDataDetailSerializer, TaskActionDetailSerializer,
+                          TaskDataDetailSerializer, TaskActionDetailSerializer, SampleByFactorySerializer,
                           OnsiteTransferAbsenceSerializer, TransferAbsenceSerializer,
                           OvertimeSerializer)
 from drf_spectacular.utils import extend_schema
@@ -238,6 +238,55 @@ class TaskDataDetailListView(APIView):
 
         with connection.cursor() as cursor:                
             cursor.execute(query, query_params)  # Pass parameters separately
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            
+            results = [dict(zip(columns, row)) for row in rows]
+            return Response(results, status=status.HTTP_200_OK)
+
+
+class SampleByFactoryView(APIView):
+    
+    @extend_schema(
+        responses=SampleByFactorySerializer(many=True),
+    )
+    def get(self, request):
+        state_type__in = request.query_params.get('state_type__in')
+        
+        query_params = []
+        where_clause = ""
+        
+        if state_type__in:
+            states = [s.strip() for s in state_type__in.split(',') if s.strip()]
+            if states:
+                placeholders = ','.join(['%s'] * len(states))
+                where_clause = f"AND wes.state_type IN ({placeholders})"
+                query_params.extend(states)
+
+        query = f"""
+            WITH task_data AS (
+                SELECT 
+                    tt.id,
+                    MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
+                    MAX(CASE WHEN ppf.name = 'Quantity requirement' THEN ttd.value END) AS quantity
+                FROM task_task tt
+                    JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                    JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                    JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                WHERE tt.title LIKE 'SP%%' 
+                    AND tt.created_at >= '2025-08-29'
+                    {where_clause}
+                GROUP BY tt.id
+            )
+            SELECT 
+                factory_code,
+                SUM(CAST(quantity AS INTEGER)) AS quantity_requirement
+            FROM task_data
+            GROUP BY factory_code
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(query, query_params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
             

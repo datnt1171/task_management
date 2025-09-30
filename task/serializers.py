@@ -528,6 +528,10 @@ class TaskDataDetailSerializer(serializers.Serializer):
     additional_detail = serializers.CharField()
 
 
+class SampleByFactorySerializer(serializers.Serializer):
+    factory_code = serializers.CharField()
+    quantity_requirement = serializers.IntegerField()
+
 class TaskActionDetailSerializer(serializers.Serializer):
     task_id = serializers.UUIDField()
     title = serializers.CharField()
