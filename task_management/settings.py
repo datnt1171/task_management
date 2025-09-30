@@ -171,7 +171,6 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_PAGINATION_CLASS': 'core.pagination.LargeResultsSetPagination',
-    'PAGE_SIZE': 50,
 }
 
 SPECTACULAR_SETTINGS = {
