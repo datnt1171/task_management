@@ -449,6 +449,7 @@ class OnsiteTransferAbsenceView(APIView):
                     JOIN user_department ud ON uu.department_id = ud.id
                     WHERE ufo.year = EXTRACT(YEAR FROM %(date)s::date) 
                         AND ufo.month = EXTRACT(MONTH FROM %(date)s::date)
+                        AND uu.is_active = true
                 ),
                 grouped_data AS (
                     SELECT factory, dept_name, COUNT(user_id) AS count_users
