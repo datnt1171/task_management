@@ -45,10 +45,16 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'first_name', 'last_name')
     ordering = ('username',)
 
+class UserFactoryOnsiteAdmin(admin.ModelAdmin):
+    list_display = ('user__username', 'factory', 'year', 'month',)
+    list_filter = ('month',)
+    search_fields = ('user__username', 'factory',)
+    ordering = ('-year', '-month',)
+
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Department)
 admin.site.register(Role)
 admin.site.register(BusinessFunction)
 admin.site.register(Permission)
 admin.site.register(RolePermission)
-admin.site.register(UserFactoryOnsite)
+admin.site.register(UserFactoryOnsite, UserFactoryOnsiteAdmin)
