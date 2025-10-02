@@ -104,9 +104,12 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         task = get_object_or_404(Task, id=self.kwargs['task_id'])
         
-        # Only task creator can edit task data
-        if task.created_by != self.request.user:
-            raise PermissionDenied("Only task creator can edit task data")
+        # Check if user has permission to edit
+        is_creator = task.created_by == self.request.user
+        is_assistant = self.request.user.role.name == "assistant"
+        
+        if not (is_creator or is_assistant):
+            raise PermissionDenied("Only task creator or assistants can edit task data")
         
         task_data = get_object_or_404(TaskData, task=task, field_id=self.kwargs['field_id'])
         return task_data
