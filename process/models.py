@@ -130,6 +130,7 @@ class FieldType(models.TextChoices):
     SELECT = 'select', 'Select'
     MULTISELECT = 'multiselect', 'Multi Select'
     FILE = 'file', 'File'
+    MULTIFILE = 'multifile', 'Multi File'
     JSON = 'json', 'Table'
     ASSIGNEE = 'assignee', 'Assignee'
     FACTORY = 'factory', 'Factory'

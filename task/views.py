@@ -104,7 +104,6 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         task = get_object_or_404(Task, id=self.kwargs['task_id'])
         
-        # Check if user has permission to edit
         is_creator = task.created_by == self.request.user
         is_assistant = self.request.user.role.name == "assistant"
         
@@ -115,16 +114,15 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         return task_data
     
     def get_queryset(self):
-        # Prefetch history for performance
         return TaskData.objects.prefetch_related('history__updated_by')
     
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         
-        # Handle file upload for FILE type fields  
+        # Handle multiple file uploads for FILE type fields  
         if instance.field.field_type == FieldType.FILE:
-            file = request.FILES.get('file')
-            data = {'file': file} if file else {}
+            files = request.FILES.getlist('files')  # Changed from 'file' to 'files'
+            data = {'files': files} if files else {}
             if 'value' in request.data:
                 data['value'] = request.data['value']
         else:
@@ -134,7 +132,6 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         
-        # Return fresh data after update
         return Response(self.get_serializer(instance).data)
     
 

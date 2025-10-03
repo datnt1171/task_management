@@ -118,20 +118,13 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
         
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
-    value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False)
-
-    def validate(self, data):
-        """Ensure either value or file is provided, but not both for file fields"""
-        field_id = data.get('field_id')
-        value = data.get('value')
-        file = data.get('file')
-        
-        if value and file:
-            # Handle your business logic here
-            pass
-        
-        return data
+    value = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    file = serializers.FileField(required=False, allow_null=True)
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        required=False,
+        allow_empty=True
+    )
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     fields = TaskDataInputSerializer(many=True, write_only=True)
@@ -141,8 +134,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         fields = ['process', 'fields']
 
     def to_internal_value(self, data):
-        # Handle FormData structure from frontend
-        if hasattr(data, 'getlist'):  # FormData from frontend
+        if hasattr(data, 'getlist'):
             fields_data = []
             field_indices = set()
             
@@ -157,18 +149,22 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 field_data = {}
                 field_id_key = f'fields[{index}][field_id]'
                 value_key = f'fields[{index}][value]'
-                file_key = f'fields[{index}][file]'
+                files_key = f'fields[{index}][files]'
                 
                 if field_id_key in data:
                     field_data['field_id'] = data[field_id_key]
                 if value_key in data:
                     field_data['value'] = data[value_key]
-                if file_key in data:
-                    field_data['file'] = data[file_key]
-                    
+                
+                # Get files list
+                if files_key in data:
+                    files_list = data.getlist(files_key)
+                    print(f"=== Field {index} Files ===")
+                    print(f"Files found: {len(files_list)}")
+                    field_data['files'] = files_list  # This will now be preserved!
+                
                 fields_data.append(field_data)
             
-            # Reconstruct data
             processed_data = {
                 'process': data.get('process'),
                 'fields': fields_data
@@ -183,10 +179,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return process
 
     def validate_fields(self, fields_data):
-        """Validate fields data"""
         if not fields_data:
             raise serializers.ValidationError("At least one field is required.")
-        
         return fields_data
 
     def create(self, validated_data):
@@ -200,7 +194,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         ).distinct().first()
 
         if not start_state:
-            # raise serializers.ValidationError({"non_field_errors": ["No start state is defined for this process."]})
             start_state = State.objects.get(state_type='static')
 
         with transaction.atomic():
@@ -216,18 +209,15 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 try:
                     field_obj = ProcessField.objects.get(id=field_id, process=process)
                 except ProcessField.DoesNotExist:
-                    raise serializers.ValidationError({"non_field_errors": [f"Field ID {field_id} is invalid for this process."]})
+                    raise serializers.ValidationError(
+                        {"non_field_errors": [f"Field ID {field_id} is invalid for this process."]}
+                    )
 
-                # Validate field type vs provided data
-                uploaded_file = field_data.get('file')
+                uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
-                # # If field type is file but no file provided, and it's required
-                # if field_obj.field_type == 'file' and not uploaded_file and field_obj.required:
-                #     raise serializers.ValidationError(f"File is required for field '{field_obj.name}'")
                 
-                # # If field type is not file but file is provided
-                # if field_obj.field_type != 'file' and uploaded_file:
-                #     raise serializers.ValidationError(f"Field '{field_obj.name}' does not accept files")
+                print(f"=== Creating TaskData for field {field_obj.name} ===")
+                print(f"Files count: {len(uploaded_files)}")
 
                 task_data = TaskData.objects.create(
                     task=task,
@@ -235,16 +225,18 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                     value=field_value
                 )
 
-                # If file is included, create TaskFileData
-                if uploaded_file:
-                    TaskFileData.objects.create(
-                        task_data=task_data,
-                        uploaded_file=uploaded_file,
-                        original_filename=uploaded_file.name or 'unknown',
-                        file_size=uploaded_file.size or 0,
-                        # Handle cases where content_type might be None
-                        mime_type=getattr(uploaded_file, 'content_type', '') or 'application/octet-stream'
-                    )
+                # Create file records
+                if uploaded_files:
+                    print(f"Creating {len(uploaded_files)} file records...")
+                    for file in uploaded_files:
+                        TaskFileData.objects.create(
+                            task_data=task_data,
+                            uploaded_file=file,
+                            original_filename=file.name or 'unknown',
+                            file_size=file.size or 0,
+                            mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
+                        )
+            
             PermissionService.create_task_permissions(task)
 
         return task
@@ -341,11 +333,17 @@ class TaskDataSerializer(serializers.ModelSerializer):
     files = TaskFileDataSerializer(many=True, read_only=True)
     history = TaskDataHistorySerializer(many=True, read_only=True)
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False, write_only=True)
+    
+    #Support multiple files
+    files_upload = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False
+    )
     
     class Meta:
         model = TaskData
-        fields = ['field', 'value', 'files', 'file', 'history']
+        fields = ['field', 'value', 'files', 'files_upload', 'history']
     
     @extend_schema_field(ProcessFieldSerializer)
     def get_field(self, obj):
@@ -363,72 +361,35 @@ class TaskDataSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Custom representation for GET requests"""
         data = super().to_representation(instance)
-        # Use custom logic for displaying value
         data['value'] = self.get_value(instance)
         return data
     
-    def validate_value(self, value):
-        field = self.instance.field if self.instance else None
-        if not field or not value:
-            return value
-            
-        # Field-type specific validation
-        if field.field_type == FieldType.NUMBER:
-            try:
-                float(value)
-            except (ValueError, TypeError):
-                raise serializers.ValidationError("Value must be a valid number")
-                
-        elif field.field_type == FieldType.DATE:
-            try:
-                datetime.strptime(value, '%Y-%m-%d')
-            except ValueError:
-                raise serializers.ValidationError("Value must be in YYYY-MM-DD format")
-                
-        elif field.field_type == FieldType.SELECT:
-            if field.options and 'choices' in field.options:
-                valid_choices = [choice['value'] for choice in field.options['choices']]
-                if value not in valid_choices:
-                    raise serializers.ValidationError(f"Value must be one of: {valid_choices}")
-                    
-        elif field.field_type == FieldType.JSON:
-            try:
-                json.loads(value)
-            except json.JSONDecodeError:
-                raise serializers.ValidationError("Value must be valid JSON")
-                
-        elif field.field_type == FieldType.ASSIGNEE:
-            try:
-                User.objects.get(id=value)
-            except (User.DoesNotExist, ValueError):
-                raise serializers.ValidationError("Invalid user ID")
-                
-        return value
-    
     def update(self, instance, validated_data):
-        file = validated_data.pop('file', None)
+        files = validated_data.pop('files_upload', None)
         
         # Update with history tracking
         new_value = validated_data.get('value')
         if new_value is not None:
-            instance.save_with_history(user=self.context.get('request').user, 
-                                       new_value=new_value)
+            instance.save_with_history(
+                user=self.context.get('request').user, 
+                new_value=new_value
+            )
         else:
             # Update other fields without history
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             instance.save()
         
-        # Handle file upload for FILE type fields
-        if instance.field.field_type == FieldType.FILE and file:
-            # Keep existing files and add new one (no deletion)
-            TaskFileData.objects.create(
-                task_data=instance,
-                uploaded_file=file,
-                original_filename=file.name,
-                file_size=file.size,
-                mime_type=getattr(file, 'content_type', '')
-            )
+        # Handle multiple file uploads for FILE type fields
+        if instance.field.field_type == FieldType.FILE and files:
+            for file in files:
+                TaskFileData.objects.create(
+                    task_data=instance,
+                    uploaded_file=file,
+                    original_filename=file.name,
+                    file_size=file.size,
+                    mime_type=getattr(file, 'content_type', '')
+                )
         
         return instance
 
