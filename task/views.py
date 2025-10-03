@@ -564,6 +564,11 @@ class TransferAbsenceView(APIView):
     def get(self, request):
         start_date = request.query_params.get('date__gte')
         end_date = request.query_params.get('date__lte')
+        department_param = request.query_params.get('user__department__name')
+        
+        department = None
+        if department_param:
+            department = [d.strip() for d in department_param.split(',') if d.strip()]
         
         # Both start_date and end_date are required
         if not start_date or not end_date:
@@ -588,8 +593,21 @@ class TransferAbsenceView(APIView):
             )
         
         ta_prefix = 'TA%'
+        
+        # Build the WHERE clause dynamically based on whether department is provided
+        department_filter = ""
+        params = {
+            'start_date': start_date, 
+            'end_date': end_date, 
+            'prefix': ta_prefix
+        }
+        
+        if department:
+            department_filter = "AND ud.name IN %(department)s"
+            params['department'] = tuple(department)  # Convert to tuple for SQL IN clause
+        
         with connection.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(f"""
                 WITH transfer_absence AS (
                     SELECT
                         tt.id as task_id,
@@ -622,11 +640,8 @@ class TransferAbsenceView(APIView):
                     JOIN user_department ud ON uu.department_id = ud.id
                     LEFT JOIN onsite os ON os.user_id_onsite = uu.id
                 WHERE (ta.from_date <= %(end_date)s AND ta.to_date >= %(start_date)s)
-            """, {
-                'start_date': start_date, 
-                'end_date': end_date, 
-                'prefix': ta_prefix
-            })
+                    {department_filter}
+            """, params)
             
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
