@@ -23,7 +23,7 @@ def generate_task_title(process: Process) -> str:
 
 class Task(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, unique=True, editable=False)
+    title = models.CharField(max_length=255)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
