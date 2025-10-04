@@ -119,19 +119,30 @@ class TaskDataRetrieveUpdateView(generics.RetrieveUpdateAPIView):
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         
-        # Handle multiple file uploads for FILE type fields  
-        if instance.field.field_type == FieldType.FILE:
-            files = request.FILES.getlist('files')  # Changed from 'file' to 'files'
-            data = {'files': files} if files else {}
+        print("=== UPDATE REQUEST ===")
+        print(f"Field Type: {instance.field.field_type}")
+        
+        # Handle file upload for FILE and MULTIFILE type fields  
+        if instance.field.field_type in [FieldType.FILE, FieldType.MULTIFILE]:
+            files = request.FILES.getlist('files')  # Get all files
+            print(f"Files received: {len(files)}")
+            
+            # Use 'files_upload' key for the serializer
+            data = {'files_upload': files} if files else {}
             if 'value' in request.data:
                 data['value'] = request.data['value']
         else:
             data = request.data
         
+        print(f"Data being sent to serializer: {data}")
+        
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
+        print(f"Validated data: {serializer.validated_data}")
+        
         serializer.save()
         
+        # Return fresh data after update
         return Response(self.get_serializer(instance).data)
     
 
