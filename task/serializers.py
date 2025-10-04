@@ -159,9 +159,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 # Get files list
                 if files_key in data:
                     files_list = data.getlist(files_key)
-                    print(f"=== Field {index} Files ===")
-                    print(f"Files found: {len(files_list)}")
-                    field_data['files'] = files_list  # This will now be preserved!
+                    field_data['files'] = files_list
                 
                 fields_data.append(field_data)
             
@@ -216,8 +214,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
                 
-                print(f"=== Creating TaskData for field {field_obj.name} ===")
-                print(f"Files count: {len(uploaded_files)}")
 
                 task_data = TaskData.objects.create(
                     task=task,
@@ -227,7 +223,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
                 # Create file records
                 if uploaded_files:
-                    print(f"Creating {len(uploaded_files)} file records...")
                     for file in uploaded_files:
                         TaskFileData.objects.create(
                             task_data=task_data,
@@ -330,7 +325,7 @@ class TaskDataHistorySerializer(serializers.ModelSerializer):
 
 class TaskDataSerializer(serializers.ModelSerializer):
     field = serializers.SerializerMethodField()
-    files = TaskFileDataSerializer(many=True, read_only=True)  # For reading
+    files = TaskFileDataSerializer(many=True, read_only=True)
     files_upload = serializers.ListField(
         child=serializers.FileField(),
         write_only=True,
@@ -339,11 +334,10 @@ class TaskDataSerializer(serializers.ModelSerializer):
     )
     history = TaskDataHistorySerializer(many=True, read_only=True)
     value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    file = serializers.FileField(required=False, write_only=True)  # Keep for backward compatibility
     
     class Meta:
         model = TaskData
-        fields = ['field', 'value', 'files', 'files_upload', 'file', 'history']
+        fields = ['field', 'value', 'files', 'files_upload', 'history']
     
     @extend_schema_field(ProcessFieldSerializer)
     def get_field(self, obj):
@@ -365,9 +359,7 @@ class TaskDataSerializer(serializers.ModelSerializer):
         return data
     
     def update(self, instance, validated_data):
-        # Pop files BEFORE updating
         files_upload = validated_data.pop('files_upload', None)
-        single_file = validated_data.pop('file', None)
         
         # Update with history tracking
         new_value = validated_data.get('value')
@@ -377,31 +369,20 @@ class TaskDataSerializer(serializers.ModelSerializer):
                 new_value=new_value
             )
         else:
-            # Update other fields without history
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
             instance.save()
         
-        # Handle file upload for FILE and MULTIFILE type fields
-        if instance.field.field_type in [FieldType.FILE, FieldType.MULTIFILE]:
-            # Determine which files to use
-            files_to_upload = files_upload if files_upload else ([single_file] if single_file else [])
+        if instance.field.field_type in [FieldType.FILE, FieldType.MULTIFILE] and files_upload:
             
-            if files_to_upload:
-                print(f"=== Replacing files: {len(files_to_upload)} new file(s) ===")
-                # Delete old files
-                instance.files.all().delete()
-                
-                # Create new files
-                for file in files_to_upload:
-                    TaskFileData.objects.create(
-                        task_data=instance,
-                        uploaded_file=file,
-                        original_filename=file.name or 'unknown',
-                        file_size=file.size or 0,
-                        mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
-                    )
-                print(f"Files replaced successfully")
+            for file in files_upload:
+                TaskFileData.objects.create(
+                    task_data=instance,
+                    uploaded_file=file,
+                    original_filename=file.name or 'unknown',
+                    file_size=file.size or 0,
+                    mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
+                )
         
         return instance
 
