@@ -1,7 +1,7 @@
 from django.contrib import admin
 from modeltranslation.admin import TranslationAdmin, TranslationTabularInline
 from .models import Process, ProcessUser, Action, ProcessActionRole, ProcessField, FieldCondition
-from workflow_engine.models import Transition
+from workflow_engine.models import Transition, ActionTransition
 
 
 class ProcessFieldInline(TranslationTabularInline):
@@ -41,6 +41,38 @@ class ProcessActionRoleInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class ActionTransitionInline(admin.TabularInline):
+    model = ActionTransition
+    extra = 0
+    fields = ('action',)
+    show_change_link = True
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "action":
+            # Get the transition from the URL to find its process
+            if hasattr(self, 'parent_obj') and self.parent_obj:
+                kwargs["queryset"] = Action.objects.filter(process=self.parent_obj.process)
+            else:
+                # Try to get from URL path
+                import re
+                match = re.search(r'/transition/([^/]+)/change/', request.path)
+                if match:
+                    try:
+                        transition = Transition.objects.get(id=match.group(1))
+                        kwargs["queryset"] = Action.objects.filter(process=transition.process)
+                    except Transition.DoesNotExist:
+                        kwargs["queryset"] = Action.objects.none()
+                else:
+                    kwargs["queryset"] = Action.objects.none()
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def get_formset(self, request, obj=None, **kwargs):
+        # Store the parent object for use in formfield_for_foreignkey
+        self.parent_obj = obj
+        return super().get_formset(request, obj, **kwargs)
+
+
 class TransitionProcessInline(admin.TabularInline):
     model = Transition
     extra = 0
@@ -48,12 +80,23 @@ class TransitionProcessInline(admin.TabularInline):
     show_change_link = True
 
 
+class TransitionAdmin(admin.ModelAdmin):
+    list_display = ('process', 'current_state', 'next_state', 'created_at')
+    list_filter = ('process',)
+    inlines = [ActionTransitionInline]
+
+
 class ProcessAdmin(TranslationAdmin):
     list_display = ('name', 'version', 'prefix', 'is_active', 'created_at')
     list_filter = ('name', 'is_active')
     search_fields = ('name',)
     ordering = ('name',)
-    inlines = [ProcessFieldInline, ProcessActionInline, ProcessActionRoleInline, TransitionProcessInline]
+    inlines = [
+        ProcessFieldInline, 
+        ProcessActionInline, 
+        ProcessActionRoleInline, 
+        TransitionProcessInline,
+    ]
 
 
 class ActionAdmin(TranslationAdmin):
@@ -123,9 +166,30 @@ class ProcessActionRoleAdmin(admin.ModelAdmin):
     ordering = ('process',)
 
 
+class ActionTransitionAdmin(admin.ModelAdmin):
+    list_display = ('transition', 'action', 'created_at')
+    list_filter = ('transition__process',)
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "action":
+            # Get transition from add/change URL
+            import re
+            match = re.search(r'transition=([^&]+)', request.GET.get('transition', ''))
+            if match:
+                try:
+                    transition = Transition.objects.get(id=match.group(1))
+                    kwargs["queryset"] = Action.objects.filter(process=transition.process)
+                except Transition.DoesNotExist:
+                    pass
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 admin.site.register(Process, ProcessAdmin)
 admin.site.register(ProcessUser, ProcessUserAdmin)
 admin.site.register(Action, ActionAdmin)
 admin.site.register(ProcessActionRole, ProcessActionRoleAdmin)
 admin.site.register(ProcessField, ProcessFieldAdmin)
 admin.site.register(FieldCondition, FieldConditionAdmin)
+admin.site.register(Transition, TransitionAdmin)
+admin.site.register(ActionTransition, ActionTransitionAdmin)

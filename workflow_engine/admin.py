@@ -68,5 +68,3 @@ class TransitionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(State)
-admin.site.register(Transition, TransitionAdmin)
-admin.site.register(ActionTransition, ActionTransitionAdminAdvanced)
