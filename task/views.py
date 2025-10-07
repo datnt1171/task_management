@@ -18,6 +18,7 @@ from django.shortcuts import get_object_or_404
 from process.models import FieldType
 from rest_framework.exceptions import PermissionDenied
 from datetime import datetime
+from django.conf import settings
 
 
 class SentTasksAPIView(generics.ListAPIView):
@@ -699,10 +700,22 @@ class OvertimeView(APIView):
                     MAX(CASE WHEN ppf.name = 'Number of overtime workers sunday' THEN ttd.value END) AS sunday_ot_num,
                     MAX(CASE WHEN ppf.name = 'Hanging line sunday' THEN ttd.value END) AS hanging_line_sunday,
                     MAX(CASE WHEN ppf.name = 'Pallet line sunday' THEN ttd.value END) AS pallet_line_sunday,
+                    COALESCE(
+                        json_agg(
+                            json_build_object(
+                                'url', ttfd.uploaded_file,
+                                'filename', ttfd.original_filename,
+                                'size', ttfd.file_size,
+                                'mime_type', ttfd.mime_type
+                            )
+                        ) FILTER (WHERE ttfd.id IS NOT NULL),
+                        '[]'::json
+                    ) as files,
                     tt.created_at 
                 FROM task_task tt
                     JOIN task_taskdata ttd ON tt.id = ttd.task_id
                     JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    LEFT JOIN task_taskfiledata ttfd ON ttd.id = ttfd.task_data_id
                 WHERE tt.title LIKE %(prefix)s
                     AND DATE(tt.created_at) BETWEEN %(start_date)s AND %(end_date)s
                 GROUP BY tt.id, tt.created_at
@@ -710,5 +723,15 @@ class OvertimeView(APIView):
             
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        domain = getattr(settings, 'DOMAIN_URL', '')
+        for result in results:
+            if result.get('files'):
+                for file in result['files']:
+                    if file.get('url'):
+                        if domain:
+                            file['url'] = f"{domain}/media/{file['url']}"
+                        else:
+                            file['url'] = f"{request.build_absolute_uri('/media/')}{file['url']}"
 
         return Response(results, status=status.HTTP_200_OK)

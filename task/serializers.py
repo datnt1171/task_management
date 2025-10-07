@@ -560,4 +560,5 @@ class OvertimeSerializer(serializers.Serializer):
     sunday_ot_num = serializers.IntegerField()
     hanging_line_sunday = serializers.CharField()
     pallet_line_sunday = serializers.CharField()
+    files = serializers.ListField(child=serializers.DictField(), required=False)
     created_at = serializers.DateField()
