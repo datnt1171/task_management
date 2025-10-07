@@ -176,6 +176,9 @@ class ConditionOperator(models.TextChoices):
     IS_EMPTY = 'is_empty', 'Is Empty'
     IS_NOT_EMPTY = 'is_not_empty', 'Is Not Empty'
     WEEKDAY = 'weekday', 'Week day'
+    USER_DEPT = 'user_dept', 'User Department'
+    USER_DEPT_IN = 'user_dept_in', 'User Department In'
+    USER_DEPT_NOT_IN = 'user_dept_not_in', 'User Department Not In'
 
 
 class FieldCondition(models.Model):
@@ -232,6 +235,12 @@ class FieldCondition(models.Model):
                          ConditionOperator.GREATER_EQUAL, ConditionOperator.LESS_EQUAL]:
             if not isinstance(value, (int, float)):
                 raise ValidationError(f"Value must be a number for {operator} operator")
+            
+        if self.operator in [ConditionOperator.USER_DEPT, ConditionOperator.USER_DEPT_IN, ConditionOperator.USER_DEPT_NOT_IN]:
+            if self.condition_field:
+                raise ValidationError(
+                    f"Operator {self.operator} should not have a condition_field"
+                )
         
         else:  # exact, not_exact, contains, not_contains
             if value is None:
