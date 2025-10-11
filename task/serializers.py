@@ -13,7 +13,7 @@ from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
 import json
 from datetime import datetime
-
+import time
 
 class SentTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
@@ -138,13 +138,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             fields_data = []
             field_indices = set()
             
-            # Extract all field indices
             for key in data.keys():
                 if key.startswith('fields[') and '][' in key:
                     index = key.split('[')[1].split(']')[0]
                     field_indices.add(int(index))
             
-            # Build fields array
             for index in sorted(field_indices):
                 field_data = {}
                 field_id_key = f'fields[{index}][field_id]'
@@ -156,7 +154,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 if value_key in data:
                     field_data['value'] = data[value_key]
                 
-                # Get files list
                 if files_key in data:
                     files_list = data.getlist(files_key)
                     field_data['files'] = files_list
@@ -182,6 +179,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return fields_data
 
     def create(self, validated_data):
+        start_time = time.time()
+        print(f'[BACKEND] Task creation started')
+        
         user = self.context['request'].user
         process = validated_data['process']
         field_data_list = validated_data.pop('fields')
@@ -214,15 +214,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
                 
-
                 task_data = TaskData.objects.create(
                     task=task,
                     field=field_obj,
                     value=field_value
                 )
 
-                # Create file records
                 if uploaded_files:
+                    files_start = time.time()
                     for file in uploaded_files:
                         TaskFileData.objects.create(
                             task_data=task_data,
@@ -231,9 +230,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                             file_size=file.size or 0,
                             mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
                         )
+                    print(f'[BACKEND] Files saved in {(time.time() - files_start)*1000:.0f}ms')
             
             PermissionService.create_task_permissions(task)
 
+        print(f'[BACKEND] Total: {(time.time() - start_time)*1000:.0f}ms')
         return task
 
 
