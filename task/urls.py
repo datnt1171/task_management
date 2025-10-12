@@ -5,6 +5,7 @@ urlpatterns = [
     path('sent/', views.SentTasksAPIView.as_view(), name='sent-tasks'),
     path('received/', views.ReceivedTasksAPIView.as_view(), name='received-tasks'),
     path('', views.TaskCreateView.as_view(), name='task-create'),
+    path('<uuid:pk>/upload-files/', views.TaskFileUploadView.as_view(), name='task-upload-files'),
     path('<uuid:pk>/action/', views.TaskActionView.as_view(), name='task-action'),
     path('<uuid:pk>/', views.TaskDetailView.as_view(), name='task-detail'),
     path('<uuid:task_id>/data/<uuid:field_id>/', views.TaskDataRetrieveUpdateView.as_view(), name='task-data-detail'),

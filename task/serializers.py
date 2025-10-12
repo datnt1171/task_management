@@ -119,7 +119,6 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
     value = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    file = serializers.FileField(required=False, allow_null=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,
@@ -132,6 +131,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['process', 'fields']
+
+    def to_representation(self, instance):
+        return {
+            'id': instance.id,
+            'title': instance.title,
+            'state': instance.state.name if instance.state else None,
+            'created_at': instance.created_at.isoformat() if hasattr(instance, 'created_at') else None
+        }
 
     def to_internal_value(self, data):
         if hasattr(data, 'getlist'):
@@ -211,30 +218,15 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                         {"non_field_errors": [f"Field ID {field_id} is invalid for this process."]}
                     )
 
-                uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
                 
-                task_data = TaskData.objects.create(
+                TaskData.objects.create(
                     task=task,
                     field=field_obj,
                     value=field_value
                 )
-
-                if uploaded_files:
-                    files_start = time.time()
-                    for file in uploaded_files:
-                        TaskFileData.objects.create(
-                            task_data=task_data,
-                            uploaded_file=file,
-                            original_filename=file.name or 'unknown',
-                            file_size=file.size or 0,
-                            mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
-                        )
-                    print(f'[BACKEND] Files saved in {(time.time() - files_start)*1000:.0f}ms')
             
             PermissionService.create_task_permissions(task)
-
-        print(f'[BACKEND] Total: {(time.time() - start_time)*1000:.0f}ms')
         return task
 
 
