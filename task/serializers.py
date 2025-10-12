@@ -119,7 +119,6 @@ class ReceivedTaskSerializer(serializers.ModelSerializer):
 class TaskDataInputSerializer(serializers.Serializer):
     field_id = serializers.UUIDField()
     value = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    file = serializers.FileField(required=False, allow_null=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,
@@ -133,18 +132,24 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['process', 'fields']
 
+    def to_representation(self, instance):
+        return {
+            'id': instance.id,
+            'title': instance.title,
+            'state': instance.state.name if instance.state else None,
+            'created_at': instance.created_at.isoformat() if hasattr(instance, 'created_at') else None
+        }
+
     def to_internal_value(self, data):
         if hasattr(data, 'getlist'):
             fields_data = []
             field_indices = set()
             
-            # Extract all field indices
             for key in data.keys():
                 if key.startswith('fields[') and '][' in key:
                     index = key.split('[')[1].split(']')[0]
                     field_indices.add(int(index))
             
-            # Build fields array
             for index in sorted(field_indices):
                 field_data = {}
                 field_id_key = f'fields[{index}][field_id]'
@@ -156,7 +161,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 if value_key in data:
                     field_data['value'] = data[value_key]
                 
-                # Get files list
                 if files_key in data:
                     files_list = data.getlist(files_key)
                     field_data['files'] = files_list
@@ -211,29 +215,15 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                         {"non_field_errors": [f"Field ID {field_id} is invalid for this process."]}
                     )
 
-                uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
                 
-
-                task_data = TaskData.objects.create(
+                TaskData.objects.create(
                     task=task,
                     field=field_obj,
                     value=field_value
                 )
-
-                # Create file records
-                if uploaded_files:
-                    for file in uploaded_files:
-                        TaskFileData.objects.create(
-                            task_data=task_data,
-                            uploaded_file=file,
-                            original_filename=file.name or 'unknown',
-                            file_size=file.size or 0,
-                            mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
-                        )
             
             PermissionService.create_task_permissions(task)
-
         return task
 
 

@@ -3,7 +3,7 @@ from django.db import connection
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Task, TaskActionLog, TaskData, TaskPermission
+from .models import Task, TaskActionLog, TaskData, TaskPermission, TaskFileData
 from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskActionSerializer, TaskDetailSerializer, TaskCreateSerializer,
                           TaskDataSerializer, 
@@ -68,6 +68,51 @@ class ReceivedTasksAPIView(generics.ListAPIView):
 
 class TaskCreateView(generics.CreateAPIView):
     serializer_class = TaskCreateSerializer
+    
+    
+class TaskFileUploadView(generics.GenericAPIView):
+    def post(self, request, pk):
+        """Upload files to existing task"""
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"error": "Task not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        field_id = request.data.get('field_id')
+        
+        try:
+            task_data = TaskData.objects.get(task=task, field_id=field_id)
+            print("created file for task", task, field_id)
+        except TaskData.DoesNotExist:
+            return Response(
+                {"error": "TaskData not found for this field"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        files = request.FILES.getlist('files')
+        
+        if not files:
+            return Response(
+                {"error": "No files provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        for file in files:
+            TaskFileData.objects.create(
+                task_data=task_data,
+                uploaded_file=file,
+                original_filename=file.name or 'unknown',
+                file_size=file.size or 0,
+                mime_type=getattr(file, 'content_type', '') or 'application/octet-stream'
+            )
+        
+        return Response({
+            "success": True,
+            "files_uploaded": len(files)
+        }, status=status.HTTP_201_CREATED)
     
     
 class TaskActionView(generics.GenericAPIView):
