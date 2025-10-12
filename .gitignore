@@ -161,3 +161,4 @@ node_modules/
 *.http
 *.sql
 media/
+creds/
