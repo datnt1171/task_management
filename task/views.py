@@ -24,7 +24,8 @@ from django.conf import settings
 class SentTasksAPIView(generics.ListAPIView):
     serializer_class = SentTaskSerializer
     filterset_fields = {
-        'state__state_type': ['exact', 'in']
+        'state__state_type': ['exact', 'in'],
+        'process__prefix': ['exact']
     }
     search_fields = ['title']
 
@@ -43,7 +44,8 @@ class SentTasksAPIView(generics.ListAPIView):
 class ReceivedTasksAPIView(generics.ListAPIView):
     serializer_class = ReceivedTaskSerializer
     filterset_fields = {
-        'state__state_type': ['exact', 'in']
+        'state__state_type': ['exact', 'in'],
+        'process__prefix': ['exact']
     }
     search_fields = ['title']
 

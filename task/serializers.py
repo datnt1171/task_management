@@ -137,7 +137,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             'id': instance.id,
             'title': instance.title,
             'state': instance.state.name if instance.state else None,
-            'created_at': instance.created_at.isoformat() if hasattr(instance, 'created_at') else None
+            'created_at': instance.created_at.isoformat() if hasattr(instance, 'created_at') else None,
+            'process_prefix': instance.process.prefix
         }
 
     def to_internal_value(self, data):
