@@ -19,6 +19,32 @@ class CustomUserAdmin(UserAdmin):
     form = CustomUserChangeForm
     model = User
     
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # If the current user is not a superuser, exclude all superusers from the list
+        if not request.user.is_superuser:
+            qs = qs.filter(is_superuser=False)
+        return qs
+    
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return super().has_change_permission(request, obj)
+    
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return super().has_delete_permission(request, obj)
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # If the user is not a superuser, make is_superuser field disabled
+        if not request.user.is_superuser:
+            if 'is_superuser' in form.base_fields:
+                form.base_fields['is_superuser'].disabled = True
+        return form
+
+    
     # Fields to show in the add user form
     add_fieldsets = (
         (None, {
