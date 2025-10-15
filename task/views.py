@@ -747,6 +747,8 @@ class OvertimeView(APIView):
                     MAX(CASE WHEN ppf.name = 'Number of overtime workers sunday' THEN ttd.value END) AS sunday_ot_num,
                     MAX(CASE WHEN ppf.name = 'Hanging line sunday' THEN ttd.value END) AS hanging_line_sunday,
                     MAX(CASE WHEN ppf.name = 'Pallet line sunday' THEN ttd.value END) AS pallet_line_sunday,
+                    MAX(CASE WHEN ppf.name = 'Num of people' THEN ttd.value END) AS num_of_ppl,
+                    MAX(CASE WHEN ppf.name = 'Name of people' THEN ttd.value END) AS name_of_ppl,
                     COALESCE(
                         json_agg(
                             json_build_object(
