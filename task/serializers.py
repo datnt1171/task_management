@@ -13,6 +13,7 @@ from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
 import json
 from datetime import datetime
+from .tasks import print_all_permission
 
 
 class SentTaskSerializer(serializers.ModelSerializer):
@@ -234,6 +235,9 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             
             PermissionService.create_task_permissions(task)
 
+            task_permissions = PermissionService.get_users_for_state(task, start_state)
+            user_ids = [user.id for user in task_permissions]
+            print_all_permission.delay_on_commit(task.id, user_ids, start_state.name)
         return task
 
 
@@ -290,6 +294,9 @@ class TaskActionSerializer(serializers.Serializer):
             file=file
         )
         
+        task_permissions = PermissionService.get_users_for_state(task, transition.next_state)
+        user_ids = [user.id for user in task_permissions]
+        print_all_permission.delay_on_commit(task.id, user_ids, transition.next_state.name)
         return task
 
 

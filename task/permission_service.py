@@ -2,6 +2,7 @@ from typing import List, Set
 from process.models import ProcessActionRole, RoleType, Action
 from task.models import Task, TaskPermission
 from user.models import User
+from workflow_engine.models import Transition
 
 class PermissionService:
     
@@ -133,3 +134,30 @@ class PermissionService:
         ).select_related('user')
         
         return {perm.user for perm in permissions}
+    
+    @staticmethod
+    def get_users_for_state(task, state) -> Set[User]:
+        """
+        Get all users who can perform any action for a given state in a task.
+        
+        Returns a set of users who have TaskPermission entries for actions
+        associated with transitions from the given state.
+        """
+        # Get all transitions from the current state for this task's process
+        transitions = Transition.objects.filter(
+            process=task.process,
+            current_state=state
+        )
+        
+        # Get all actions associated with these transitions
+        actions = Action.objects.filter(
+            actiontransition__transition__in=transitions
+        ).distinct()
+        
+        # Get all users with TaskPermission for these actions on this task
+        users = User.objects.filter(
+            taskpermission__task=task,
+            taskpermission__action__in=actions
+        ).distinct()
+        
+        return set(users)
