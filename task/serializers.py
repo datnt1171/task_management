@@ -13,8 +13,7 @@ from drf_spectacular.utils import extend_schema_field
 from core.utils import FileValidator
 import json
 from datetime import datetime
-from .tasks import print_all_permission
-
+from .tasks import send_task_notification
 
 class SentTaskSerializer(serializers.ModelSerializer):
     process = serializers.CharField(source='process.name')
@@ -214,7 +213,6 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
                 uploaded_files = field_data.get('files', [])
                 field_value = field_data.get('value')
-                
 
                 task_data = TaskData.objects.create(
                     task=task,
@@ -235,9 +233,12 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             
             PermissionService.create_task_permissions(task)
 
-            task_permissions = PermissionService.get_users_for_state(task, start_state)
-            user_ids = [user.id for user in task_permissions]
-            print_all_permission.delay_on_commit(task.id, user_ids, start_state.name)
+            send_task_notification.delay_on_commit(
+                task_id=str(task.id),
+                state_id=str(start_state.id),
+                exclude_user_id=user.id
+            )
+            
         return task
 
 
@@ -294,9 +295,13 @@ class TaskActionSerializer(serializers.Serializer):
             file=file
         )
         
-        task_permissions = PermissionService.get_users_for_state(task, transition.next_state)
-        user_ids = [user.id for user in task_permissions]
-        print_all_permission.delay_on_commit(task.id, user_ids, transition.next_state.name)
+        # Send notification
+        send_task_notification.delay_on_commit(
+            task_id=str(task.id),
+            state_id=str(transition.next_state.id),
+            exclude_user_id=user.id
+        )
+        
         return task
 
 
