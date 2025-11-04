@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import User, Role, Department, RolePermission, UserFactoryOnsite
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from fcm_django.models import FCMDevice
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,12 +25,21 @@ class UserDetailSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer()
     role = RoleSerializer()
     supervisor = UserSerializer(read_only=True)
+    current_device_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 
                   'email', 'department', 'role', 'supervisor', 
-                  'is_password_changed']
+                  'is_password_changed', 'current_device_id']
+    
+    def get_current_device_id(self, obj):
+        device = FCMDevice.objects.filter(
+            user=obj, 
+            type='web', 
+            active=True
+        ).first()
+        return device.registration_id if device else None
         
         
 class ChangePasswordSerializer(serializers.Serializer):
