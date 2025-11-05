@@ -9,7 +9,8 @@ from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskDataSerializer, 
                           TaskDataDetailSerializer, TaskActionDetailSerializer, SampleByFactorySerializer,
                           OnsiteTransferAbsenceSerializer, TransferAbsenceSerializer,
-                          OvertimeSerializer)
+                          OvertimeSerializer,
+                          DailyMovementSerializer,)
 from drf_spectacular.utils import extend_schema
 from core.translation import get_localized_column
 from user.permissions import HasJWTPermission
@@ -782,5 +783,66 @@ class OvertimeView(APIView):
                             file['url'] = f"{domain}/media/{file['url']}"
                         else:
                             file['url'] = f"{request.build_absolute_uri('/media/')}{file['url']}"
+
+        return Response(results, status=status.HTTP_200_OK)  
+
+
+class DailyMovementView(APIView):
+    
+    @extend_schema(
+        responses=DailyMovementSerializer(many=True),
+    )
+    def get(self, request):
+        wes_name = get_localized_column('wes.name')
+        # Default to current year and month
+        now = datetime.now()
+        month = request.query_params.get('month', now.month)
+        year = request.query_params.get('year', now.year)
+        
+        dm_prefix = 'DM%'
+        params = {
+            'prefix': dm_prefix,
+            'year': year,
+            'month': month
+        }
+        
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                WITH daily_movement AS (
+                    SELECT
+                        tt.id task_id,
+                        tt.title,
+                        CASE 
+                            WHEN MAX(CASE WHEN ppf.name = 'Actual date' THEN ttd.value END) IS NOT NULL 
+                                AND MAX(CASE WHEN ppf.name = 'Actual date' THEN ttd.value END) != '' 
+                            THEN MAX(CASE WHEN ppf.name = 'Actual date' THEN ttd.value END)::date
+                            ELSE tt.created_at::date
+                        END AS created_at,
+                        CONCAT(uu.last_name,' ', uu.first_name) AS created_by,
+                        {wes_name} AS state,
+                        wes.state_type AS state_type,
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
+                        MAX(CASE WHEN ppf.name = 'Task type' THEN ttd.value END) AS task_type,
+                        MAX(CASE WHEN ppf.name = 'Task detail' THEN ttd.value END) AS task_detail,
+                        MAX(CASE WHEN ppf.name = 'Result' THEN ttd.value END) AS result
+                    FROM task_task tt
+                        JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                        JOIN user_user uu ON tt.created_by_id = uu.id
+                        JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                        JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    WHERE tt.title LIKE %(prefix)s
+                    GROUP BY tt.id, tt.title, tt.created_at, uu.last_name, uu.first_name, {wes_name}, wes.state_type
+                )
+                SELECT task_id, title, created_at, created_by,
+                        state, state_type,
+                        factory_code, task_type, task_detail, result
+                FROM daily_movement
+                WHERE EXTRACT(YEAR FROM created_at) = %(year)s
+                    AND EXTRACT(MONTH FROM created_at) = %(month)s
+                ORDER BY created_at
+            """, params)
+            
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
         return Response(results, status=status.HTTP_200_OK)

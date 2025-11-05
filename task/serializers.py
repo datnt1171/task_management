@@ -570,3 +570,16 @@ class OvertimeSerializer(serializers.Serializer):
     name_of_ppl = serializers.CharField()
     files = serializers.ListField(child=serializers.DictField(), required=False)
     created_at = serializers.DateField()
+
+
+class DailyMovementSerializer(serializers.Serializer):
+    task_id = serializers.CharField()
+    title = serializers.CharField()
+    created_at = serializers.DateField()
+    created_by = serializers.CharField()
+    state = serializers.CharField()
+    state_type = serializers.CharField()
+    factory_code = serializers.CharField()
+    task_type = serializers.CharField()
+    task_detail = serializers.CharField()
+    result = serializers.CharField()

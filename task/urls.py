@@ -15,6 +15,7 @@ urlpatterns = [
     path('action-detail/', views.TaskActionDetailView.as_view(), name='action-detail'),
     path('onsite-transfer-absence/', views.OnsiteTransferAbsenceView.as_view(), name='onsite-transfer-absence'),
     path('transfer-absence/', views.TransferAbsenceView.as_view(), name='transfer-absence'),
-    path('overtime/', views.OvertimeView.as_view(), name='overtime')
+    path('overtime/', views.OvertimeView.as_view(), name='overtime'),
+    path('daily-movement/', views.DailyMovementView.as_view(), name='daily-movement'),
 ]
 
