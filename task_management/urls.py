@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/tasks/', include('task.urls')),
     # path('api/edms/', include('edms.urls')),
     path('api/sheets/', include('sheet.urls')),
+    path('api/fleets/', include('fleet.urls')),
 ]
 
 if settings.DEBUG:

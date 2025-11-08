@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'workflow_engine',
     'sheet',
     # 'edms',
+    'fleet',
     
 ]
 

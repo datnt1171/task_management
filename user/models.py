@@ -109,6 +109,11 @@ class User(AbstractUser):
         if self.first_name and self.last_name:
             return f"{self.last_name} {self.first_name}"
         return self.username
+    
+    def get_full_name(self):
+        if self.first_name and self.last_name:
+            return f"{self.last_name} {self.first_name}"
+        return self.username
 
     def __str__(self):
         if self.first_name and self.last_name:
