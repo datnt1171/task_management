@@ -8,4 +8,5 @@ router.register(r'stops', views.StopViewSet, basename='stop')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('trip-logs/', views.TripLogView.as_view(), name='trip-logs')
 ]

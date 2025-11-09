@@ -1,9 +1,11 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import connection
+from drf_spectacular.utils import extend_schema
+from rest_framework.views import APIView
 from django.db import models
 from .models import Trip, Stop
-from .serializers import TripSerializer, StopSerializer
+from .serializers import TripSerializer, StopSerializer, TripLogSerializer
 
 
 class TripViewSet(viewsets.ModelViewSet):
@@ -27,13 +29,17 @@ class TripViewSet(viewsets.ModelViewSet):
         queryset = queryset.select_related('driver', 'created_by', 'updated_by')
         queryset = queryset.prefetch_related('stops')
         
-        # Filter to only trips created by or driven by current user
-        queryset = queryset.filter(
+        user = self.request.user
+        # Filter to only trips created by or driven by current user (unless assistant)
+        if user.role.name == "assistant" or user.is_staff:
+            # Assistants can view all trips
+            return queryset
+        
+        # Non-assistants only see trips they created or drove
+        return queryset.filter(
             models.Q(driver=self.request.user) | 
             models.Q(created_by=self.request.user)
         )
-        
-        return queryset
 
 
 class StopViewSet(viewsets.ModelViewSet):
@@ -105,3 +111,67 @@ class StopViewSet(viewsets.ModelViewSet):
         for stop in stops_to_reorder:
             stop.order -= 1
             stop.save(update_fields=['order'])
+
+
+class TripLogView(APIView):
+    
+    @extend_schema(
+        responses=TripLogSerializer(many=True),
+    )
+    def get(self, request):
+
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                WITH trip_data AS (
+                    SELECT 
+                        ft.id AS trip_id, 
+                        ft."date", 
+                        ft.license_plate, 
+                        fst."order" AS stop_order, 
+                        fst."location", 
+                        fst.odometer, 
+                        fst.created_at, 
+                        fst.toll_station, 
+                        uu.username
+                    FROM fleet_stop fst
+                    JOIN fleet_trip ft ON fst.trip_id = ft.id
+                    JOIN user_user uu ON ft.driver_id = uu.id
+                ),
+                trip_segments AS (
+                    SELECT
+                        trip_id,
+                        date,
+                        license_plate,
+                        location AS start_loc,
+                        LEAD(location) OVER (PARTITION BY trip_id ORDER BY stop_order) AS end_loc,
+                        odometer AS start_odometer,
+                        LEAD(odometer) OVER (PARTITION BY trip_id ORDER BY stop_order) AS end_odometer,
+                        created_at AS start_time,
+                        LEAD(created_at) OVER (PARTITION BY trip_id ORDER BY stop_order) AS end_time,
+                        LEAD(toll_station) OVER (PARTITION BY trip_id ORDER BY stop_order) AS toll_station,
+                        username
+                    FROM trip_data
+                )
+                SELECT
+                    trip_id,
+                    date,
+                    license_plate,
+                    start_loc,
+                    end_loc,
+                    start_odometer,
+                    end_odometer,
+                    start_time,
+                    end_time,
+                    toll_station,
+                    username,
+                    (end_odometer - start_odometer) AS distance,
+                    (end_time - start_time) AS duration
+                FROM trip_segments
+                WHERE end_loc IS NOT NULL
+                ORDER BY date, license_plate, username, start_time;
+            """)
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    

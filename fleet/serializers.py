@@ -113,3 +113,19 @@ class TripSerializer(serializers.ModelSerializer):
         """Override update to set updated_by"""
         validated_data['updated_by'] = self.context['request'].user
         return super().update(instance, validated_data)
+    
+
+class TripLogSerializer(serializers.Serializer):
+    trip_id = serializers.UUIDField()
+    date = serializers.DateField()
+    license_plate = serializers.CharField()
+    start_loc = serializers.CharField()
+    end_loc = serializers.CharField()
+    start_odometer = serializers.IntegerField()
+    end_odometer = serializers.IntegerField()
+    start_time = serializers.DateTimeField()
+    end_time = serializers.DateTimeField()
+    toll_station = serializers.CharField()
+    username = serializers.CharField()
+    distance = serializers.IntegerField()
+    duration = serializers.FloatField()
