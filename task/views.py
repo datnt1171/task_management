@@ -798,14 +798,18 @@ class DailyMovementView(APIView):
         now = datetime.now()
         month = request.query_params.get('month', now.month)
         year = request.query_params.get('year', now.year)
+        created_by_id = request.query_params.get('created_by_id')
+
+        created_by_id_list = created_by_id.split(',') if created_by_id else None
         
         dm_prefix = 'DM%'
         params = {
             'prefix': dm_prefix,
             'year': year,
-            'month': month
+            'month': month,
+            'created_by_id_list': created_by_id_list,
         }
-        
+        print(created_by_id_list)
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 WITH daily_movement AS (
@@ -819,6 +823,7 @@ class DailyMovementView(APIView):
                             ELSE tt.created_at::date
                         END AS created_at,
                         CONCAT(uu.last_name,' ', uu.first_name) AS created_by,
+                        tt.created_by_id,
                         {wes_name} AS state,
                         wes.state_type AS state_type,
                         MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
@@ -831,14 +836,16 @@ class DailyMovementView(APIView):
                         JOIN task_taskdata ttd ON tt.id = ttd.task_id
                         JOIN process_processfield ppf ON ttd.field_id = ppf.id
                     WHERE tt.title LIKE %(prefix)s
-                    GROUP BY tt.id, tt.title, tt.created_at, uu.last_name, uu.first_name, {wes_name}, wes.state_type
+                    GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.last_name, uu.first_name, {wes_name}, wes.state_type
                 )
-                SELECT task_id, title, created_at, created_by,
+                SELECT task_id, title, created_at, 
+                        created_by_id, created_by,
                         state, state_type,
                         factory_code, task_type, task_detail, result
                 FROM daily_movement
                 WHERE EXTRACT(YEAR FROM created_at) = %(year)s
                     AND EXTRACT(MONTH FROM created_at) = %(month)s
+                    AND (%(created_by_id_list)s::text[] IS NULL OR created_by_id::text = ANY(%(created_by_id_list)s))
                 ORDER BY created_at
             """, params)
             

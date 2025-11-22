@@ -573,9 +573,10 @@ class OvertimeSerializer(serializers.Serializer):
 
 
 class DailyMovementSerializer(serializers.Serializer):
-    task_id = serializers.CharField()
+    task_id = serializers.UUIDField()
     title = serializers.CharField()
     created_at = serializers.DateField()
+    created_by_id = serializers.UUIDField()
     created_by = serializers.CharField()
     state = serializers.CharField()
     state_type = serializers.CharField()

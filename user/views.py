@@ -23,6 +23,7 @@ class UserListView(ListAPIView):
     filterset_fields = {
         'department__name': ['exact', 'in'],
         'role__name': ['exact', 'in'],
+        'username': ['exact', 'in'],
     }
     search_fields = ['username', 'first_name', 'last_name']
 
