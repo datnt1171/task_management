@@ -583,4 +583,5 @@ class DailyMovementSerializer(serializers.Serializer):
     factory_code = serializers.CharField()
     task_type = serializers.CharField()
     task_detail = serializers.CharField()
+    estimated_completion_date = serializers.DateField()
     result = serializers.CharField()

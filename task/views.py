@@ -829,6 +829,7 @@ class DailyMovementView(APIView):
                         MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
                         MAX(CASE WHEN ppf.name = 'Task type' THEN ttd.value END) AS task_type,
                         MAX(CASE WHEN ppf.name = 'Task detail' THEN ttd.value END) AS task_detail,
+                        MAX(CASE WHEN ppf.name = 'Estimated completion date' THEN ttd.value END) AS estimated_completion_date,
                         MAX(CASE WHEN ppf.name = 'Result' THEN ttd.value END) AS result
                     FROM task_task tt
                         JOIN workflow_engine_state wes ON tt.state_id = wes.id
@@ -841,7 +842,7 @@ class DailyMovementView(APIView):
                 SELECT task_id, title, created_at, 
                         created_by_id, created_by,
                         state, state_type,
-                        factory_code, task_type, task_detail, result
+                        factory_code, task_type, task_detail, estimated_completion_date, result
                 FROM daily_movement
                 WHERE EXTRACT(YEAR FROM created_at) = %(year)s
                     AND EXTRACT(MONTH FROM created_at) = %(month)s
