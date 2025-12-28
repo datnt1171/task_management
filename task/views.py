@@ -10,7 +10,8 @@ from .serializers import (ReceivedTaskSerializer, SentTaskSerializer,
                           TaskDataDetailSerializer, TaskActionDetailSerializer, SampleByFactorySerializer,
                           OnsiteTransferAbsenceSerializer, TransferAbsenceSerializer,
                           OvertimeSerializer,
-                          DailyMovementSerializer,)
+                          DailyMovementSerializer,
+                          CustomerEntrySerializer,)
 from drf_spectacular.utils import extend_schema
 from core.translation import get_localized_column
 from user.permissions import HasJWTPermission
@@ -848,6 +849,58 @@ class DailyMovementView(APIView):
                     AND EXTRACT(MONTH FROM created_at) = %(month)s
                     AND (%(created_by_id_list)s::text[] IS NULL OR created_by_id::text = ANY(%(created_by_id_list)s))
                 ORDER BY created_at
+            """, params)
+            
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response(results, status=status.HTTP_200_OK)
+    
+
+class CustomerEntryView(APIView):
+    
+    @extend_schema(
+        responses=CustomerEntrySerializer(many=True),
+    )
+    def get(self, request):
+        wes_name = get_localized_column('wes.name')
+        
+        dm_prefix = 'CE%'
+        params = {
+            'prefix': dm_prefix,
+        }
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                WITH customer_entry AS (
+                    SELECT
+                        tt.id task_id,
+                        tt.title,
+                        tt.created_at as created_at,
+                        CONCAT(uu.last_name,' ', uu.first_name) AS created_by,
+                        tt.created_by_id,
+                        {wes_name} AS state,
+                        wes.state_type AS state_type,
+                        MAX(CASE WHEN ppf.name = 'Customer of Boss' THEN ttd.value END) AS customer_of_boss,
+                        MAX(CASE WHEN ppf.name = 'Name of customer' THEN ttd.value END) AS factory_code,
+                        MAX(CASE WHEN ppf.name = 'Note' THEN ttd.value END) AS note,
+                        MAX(CASE WHEN ppf.name = 'Licence plate' THEN ttd.value END) AS license_plate,
+                        MAX(CASE WHEN ppf.name = 'Driver name' THEN ttd.value END) AS drive_name,
+                        MAX(CASE WHEN ppf.name = 'Date' THEN ttd.value END) as scheduled_date,
+                        MAX(CASE WHEN ppf.name = 'Time' THEN ttd.value END) AS scheduled_time
+                    FROM task_task tt
+                        JOIN workflow_engine_state wes ON tt.state_id = wes.id
+                        JOIN user_user uu ON tt.created_by_id = uu.id
+                        JOIN task_taskdata ttd ON tt.id = ttd.task_id
+                        JOIN process_processfield ppf ON ttd.field_id = ppf.id
+                    WHERE tt.title LIKE %(prefix)s
+                    GROUP BY tt.id, tt.title, tt.created_at, tt.created_by_id, uu.last_name, uu.first_name, {wes_name}, wes.state_type
+                    )
+                    SELECT task_id, title, created_at, 
+                        created_by_id, created_by,
+                        state, state_type,
+                        customer_of_boss, factory_code, note, license_plate, drive_name, scheduled_date, scheduled_time
+                    FROM customer_entry
+                    ORDER BY created_at
             """, params)
             
             columns = [col[0] for col in cursor.description]

@@ -17,5 +17,6 @@ urlpatterns = [
     path('transfer-absence/', views.TransferAbsenceView.as_view(), name='transfer-absence'),
     path('overtime/', views.OvertimeView.as_view(), name='overtime'),
     path('daily-movement/', views.DailyMovementView.as_view(), name='daily-movement'),
+    path('customer-entry/', views.CustomerEntryView.as_view(), name='customer-entry'),
 ]
 

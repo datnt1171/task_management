@@ -227,11 +227,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             
             PermissionService.create_task_permissions(task)
 
-            send_task_notification.delay_on_commit(
-                task_id=str(task.id),
-                state_id=str(start_state.id),
-                exclude_user_id=user.id
-            )
+            # send_task_notification.delay_on_commit(
+            #     task_id=str(task.id),
+            #     state_id=str(start_state.id),
+            #     exclude_user_id=user.id
+            # )
             
         return task
 
@@ -290,11 +290,11 @@ class TaskActionSerializer(serializers.Serializer):
         )
         
         # Send notification
-        send_task_notification.delay_on_commit(
-            task_id=str(task.id),
-            state_id=str(transition.next_state.id),
-            exclude_user_id=user.id
-        )
+        # send_task_notification.delay_on_commit(
+        #     task_id=str(task.id),
+        #     state_id=str(transition.next_state.id),
+        #     exclude_user_id=user.id
+        # )
         
         return task
 
@@ -585,3 +585,20 @@ class DailyMovementSerializer(serializers.Serializer):
     task_detail = serializers.CharField()
     estimated_completion_date = serializers.DateField()
     result = serializers.CharField()
+
+
+class CustomerEntrySerializer(serializers.Serializer):
+    task_id = serializers.UUIDField()
+    title = serializers.CharField()
+    created_at = serializers.DateField()
+    created_by_id = serializers.UUIDField()
+    created_by = serializers.CharField()
+    state = serializers.CharField()
+    state_type = serializers.CharField()
+    customer_of_boss = serializers.CharField()
+    factory_code = serializers.CharField()
+    note = serializers.CharField()
+    license_plate = serializers.CharField()
+    drive_name = serializers.CharField()
+    scheduled_date = serializers.DateField()
+    scheduled_time = serializers.TimeField()
