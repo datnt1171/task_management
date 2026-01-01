@@ -53,7 +53,7 @@ def send_task_notification(task_id, state_id, exclude_user_id):
                 'body': f"{task.title} ({state.name}) cần thực hiện",
                 'task_id': str(task_id),
                 'state_id': str(state_id),
-                'url': f"{settings.FRONTEND_URL}/task-management/tasks/{task_id}" if hasattr(settings, 'FRONTEND_URL') else None,
+                'url': f"{settings.DOMAIN_URL}/task-management/tasks/{task_id}" if hasattr(settings, 'DOMAIN_URL') else None,
             }
         )
         

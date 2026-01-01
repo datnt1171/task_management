@@ -227,11 +227,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             
             PermissionService.create_task_permissions(task)
 
-            # send_task_notification.delay_on_commit(
-            #     task_id=str(task.id),
-            #     state_id=str(start_state.id),
-            #     exclude_user_id=user.id
-            # )
+            send_task_notification.delay_on_commit(
+                task_id=str(task.id),
+                state_id=str(start_state.id),
+                exclude_user_id=user.id
+            )
             
         return task
 
@@ -290,11 +290,11 @@ class TaskActionSerializer(serializers.Serializer):
         )
         
         # Send notification
-        # send_task_notification.delay_on_commit(
-        #     task_id=str(task.id),
-        #     state_id=str(transition.next_state.id),
-        #     exclude_user_id=user.id
-        # )
+        send_task_notification.delay_on_commit(
+            task_id=str(task.id),
+            state_id=str(transition.next_state.id),
+            exclude_user_id=user.id
+        )
         
         return task
 
