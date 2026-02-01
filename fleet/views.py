@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from django.db import models
 from .models import Trip, Stop
 from .serializers import TripSerializer, StopSerializer, TripLogSerializer
-
+from datetime import datetime
 
 class TripViewSet(viewsets.ModelViewSet):
     
@@ -119,6 +119,39 @@ class TripLogView(APIView):
         responses=TripLogSerializer(many=True),
     )
     def get(self, request):
+        now = datetime.now()
+        month = request.query_params.get('month', now.month)
+        year = request.query_params.get('year', now.year)
+        license_plate = request.query_params.get('license_plate')
+        driver = request.query_params.get('driver')
+
+        # Build the WHERE conditions
+        where_conditions = ["end_loc IS NOT NULL"]
+        query_params = []
+        
+        # Add month and year filters
+        where_conditions.append("EXTRACT(MONTH FROM date) = %s")
+        query_params.append(month)
+        where_conditions.append("EXTRACT(YEAR FROM date) = %s")
+        query_params.append(year)
+        
+        # Add license_plate filter (comma-separated list)
+        if license_plate:
+            plates = [plate.strip() for plate in license_plate.split(',') if plate.strip()]
+            if plates:
+                placeholders = ','.join(['%s'] * len(plates))
+                where_conditions.append(f"license_plate IN ({placeholders})")
+                query_params.extend(plates)
+        
+        # Add driver filter (comma-separated list)
+        if driver:
+            drivers = [d.strip() for d in driver.split(',') if d.strip()]
+            if drivers:
+                placeholders = ','.join(['%s'] * len(drivers))
+                where_conditions.append(f"username IN ({placeholders})")
+                query_params.extend(drivers)
+        
+        where_clause = " AND ".join(where_conditions)
 
         with connection.cursor() as cursor:
             cursor.execute(f"""
@@ -167,9 +200,9 @@ class TripLogView(APIView):
                     (end_odometer - start_odometer) AS distance,
                     (end_time - start_time) AS duration
                 FROM trip_segments
-                WHERE end_loc IS NOT NULL
+                WHERE {where_clause}
                 ORDER BY date, license_plate, username, start_time;
-            """)
+            """, query_params)
             columns = [col[0] for col in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
