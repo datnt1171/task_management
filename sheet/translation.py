@@ -7,5 +7,5 @@ class StepTemplateTranslationOptions(TranslationOptions):
 
 @register(ProductTemplate)
 class ProductTemplateTranslationOptions(TranslationOptions):
-    fields = ('type',)
+    fields = ('description',)
     

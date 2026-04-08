@@ -6,7 +6,7 @@ class ProductTemplateInline(admin.TabularInline):
     extra = 0
     ordering = ['name']
     fields = ('code', 'name', 'ratio', 
-              'type', 'type_en', 'type_vi', 'type_zh_hant', 
+              'description', 'description_en', 'description_vi', 'description_zh_hant', 
               'unit',)
     show_change_link = True
 

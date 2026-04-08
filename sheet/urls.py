@@ -5,6 +5,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'finishing-sheets', views.FinishingSheetViewSet, basename='finishing-sheet')
 router.register(r'sheet-blueprints', views.SheetBlueprintViewSet, basename='sheet-blueprint')
+router.register(r'sheet-images', views.SheetImageViewSet, basename='sheet-image')
 
 urlpatterns = [
     path('', include(router.urls)),
